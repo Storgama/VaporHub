@@ -1,45 +1,40 @@
-# 🚀 VaporHub
+🚀 VaporHub
+Outil de gestion et suivi de contenu
 
-> Outil de gestion et suivi de contenu
+Bienvenue sur le projet VaporHub ! Ce monorepo regroupe le serveur backend Node.js / Express et le client frontend propulsé par Vite.
 
-Bienvenue sur le projet **VaporHub** ! Ce monorepo regroupe le serveur backend Node.js / Express et le client frontend propulsé par Vite.
+🛠️ Stack Technique
+Backend : Node.js, Express, ES Modules
 
----
+Frontend : Vite, HTML/CSS/JS (Vanilla)
 
-## 🛠️ Stack Technique
+Orchestration : Concurrently
 
-* **Backend :** Node.js, Express, ES Modules (`"type": "module"`)
-* **Frontend :** Vite, HTML/CSS/JS (Vanilla)
-* **Orchestration :** Concurrently
+🚀 Démarrage Rapide
+1. Prérequis
+Avoir Node.js (v18 ou supérieur) et npm installés.
 
----
-
-## 🚀 Démarrage Rapide
-
-### 1. Prérequis
-Avoir **Node.js** (v18 ou supérieur) et **npm** installés.
-
-### 2. Installation
+2. Installation
 À la racine du projet :
 
-```bash
 npm install
+
 3. Lancement en dev
 Pour lancer le Backend et le Frontend en parallèle avec une seule commande :
 
-Bash
 npm run dev
+
 Frontend : http://localhost:5173
 
 Backend API : http://localhost:3000
 
 📐 Structure du Monorepo
-Plaintext
 Vaporhub/
 ├── backend/          # API Express & services
 ├── frontend/         # Application Web Vite
 ├── package.json      # Configuration racine & scripts Concurrently
 └── README.md
+
 🤝 Workflow Git & Collaboration
 Pour travailler proprement à deux :
 
@@ -54,18 +49,18 @@ fix/nom-du-bug : Correction de bug
 refactor/nom-de-la-tache : Nettoyage / Refacto
 
 3. Routine de dev
-Bash
-# 1. Se remettre sur main et récupérer le code à jour
+Se remettre sur main et récupérer le code à jour :
 git checkout main
 git pull origin main
 
-# 2. Créer une nouvelle branche
+Créer une nouvelle branche :
 git checkout -b feat/ma-feature
 
-# 3. Coder, commiter et pusher
+Coder, commiter et pusher :
 git add .
 git commit -m "feat: description de la tache"
 git push origin feat/ma-feature
+
 4. Validation
 Ouvre une Pull Request sur GitHub (ou via l'extension VS Code).
 
