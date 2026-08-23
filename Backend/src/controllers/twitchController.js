@@ -7,6 +7,9 @@ export const getStreamStats = async (req, res, next) => {
             viewerCount: 15,
             lastStreamDate: new Date().toISOString()
         };
+        /**
+         * JE suis un test de PR
+         */
 
         res.json(stats);
     } catch (error) {
