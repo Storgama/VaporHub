@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vaporhub Dashboard</title>
+    <style>
+      body { background: #121212; color: #fff; font-family: sans-serif; padding: 2rem; }
+      .card { background: #1e1e1e; padding: 1.5rem; border-radius: 8px; max-width: 400px; border: 1px solid #333; }
+      .live { color: #00ff66; }
+      .offline { color: #888; }
+    </style>
+  </head>
+  <body>
+    <h1>Vaporhub Dashboard</h1>
+
+    <div class="card">
+      <h2>Statistiques Twitch</h2>
+      <p>Chaîne : <span id="channel-name">Chargement...</span></p>
+      <p>Statut : <span id="status">...</span></p>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

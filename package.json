@@ -1,12 +1,27 @@
 {
   "name": "vaporhub",
   "version": "1.0.0",
-  "description": "",
+  "description": "Outil de gestion et suivi de contenu",
   "license": "ISC",
   "author": "",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
+    "dev:backend": "npm run dev --prefix Backend",
+    "dev:frontend": "npm run dev --prefix Frontend",
+    "dev": "concurrently -k -n \"BACK,FRONT\" -c \"magenta,cyan\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Storgama/VaporHub.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/Storgama/VaporHub/issues"
+  },
+  "homepage": "https://github.com/Storgama/VaporHub#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }
