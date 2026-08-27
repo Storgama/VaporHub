@@ -8,6 +8,13 @@
       "when": 1787684350589,
       "tag": "0000_massive_gladiator",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787850822941,
+      "tag": "0001_rich_black_knight",
+      "breakpoints": true
     }
   ]
 }
