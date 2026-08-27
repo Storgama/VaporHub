@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import apiRouter from './routes/api.js';
 import { errorHandler } from './middlewares/errorHandler.js';
+import { runHealthCheck } from './utils/healthcheck.js'
 
 const app = express();
 
@@ -11,6 +12,15 @@ const app = express();
  */
 app.use(cors()); // Autorise les requêtes depuis ton futur Frontend
 app.use(express.json()); // Parse les JSON en gros tu passe d'un gros boublibouga a ça {piou => proute}
+
+/**
+ * Route Pour obtenir le résultat de check du système global
+ */
+app.get('/health', async (req, res) => {
+    const health = await runHealthCheck();
+    const statusCode = health.status === 'OK' ? 200 : 503;
+    res.status(statusCode).json(health);
+});
 
 /**
  * Ajout des Route (les URL pour dire ce qu'on réponds)

@@ -9,6 +9,8 @@ const { Client } = pg;
 // Récupère l'URL de connexion depuis le fichier .env
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 5000, // Abandonne au bout de 5s si pas de réponse
+  ssl: { rejectUnauthorized: false }, // Indispensable pour Supabase !
 });
 
 async function testConnection() {
