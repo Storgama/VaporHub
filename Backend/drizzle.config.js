@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 export default {
-  schema: './src/db/schema.js',
+  schema: './src/db/schemas/index.js',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {

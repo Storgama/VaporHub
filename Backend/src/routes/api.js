@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import twitchRoutes from './twitchRoutes.js';
+import authRoutes from './authRoutes.js';
 
 const router = Router();
 
@@ -19,5 +20,10 @@ router.get('/health', (req, res) => {
  * /api/twitch
  */
 router.use('/twitch', twitchRoutes);
+
+/**
+ * routes pour l'authentification
+ */
+router.use('/auth', authRoutes);
 
 export default router;
