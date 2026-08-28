@@ -15,6 +15,20 @@
       "when": 1787850822941,
       "tag": "0001_rich_black_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787928727156,
+      "tag": "0002_clever_ezekiel",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787928760341,
+      "tag": "0003_square_rhino",
+      "breakpoints": true
     }
   ]
 }
