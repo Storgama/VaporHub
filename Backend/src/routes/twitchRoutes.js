@@ -1,14 +1,16 @@
 import { Router } from 'express';
-import { getStreamStats } from '../controllers/twitchController.js';
+import { getTwitchAuthUrl, twitchCallback, getLiveStatus } from '../controllers/twitchController.js';
 import { requireAuth } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
-/**
- * du coup voila notre premier route
- * en gros ici en URL tu auras localhost ou ton nom de domain genre www.jetepiseaucul.com /api/twitch/stats
- * et getStreamStats c'est ce qui contient ce quon va retour ça s'appel un controller en dev c'est l'action en gros
- */
-router.get('/stats', requireAuth, getStreamStats);
+// 1. Obtenir l'URL de connexion Twitch (protégé)
+router.get('/auth', requireAuth, getTwitchAuthUrl);
+
+// 2. Callback de retour Twitch (public : Twitch redirige ici)
+router.get('/callback', twitchCallback);
+
+// 3. Stats en direct (protégé)
+router.get('/live', requireAuth, getLiveStatus);
 
 export default router;
