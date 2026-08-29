@@ -6,51 +6,8 @@
     <link href="./src/style/style.css" rel="stylesheet">
   </head>
   <body>
-    <h1>🚀 VaporHub</h1>
-
-    <!-- 1. SECTION AUTHENTIFICATION (Visible si déconnecté) -->
-    <div id="auth-section" class="card">
-      
-      <!-- Onglets pour basculer Connexion / Inscription -->
-      <div class="tabs">
-        <button id="tab-login" class="active">Connexion</button>
-        <button id="tab-register">Inscription</button>
-      </div>
-
-      <!-- Formulaire Connexion -->
-      <form id="login-form">
-        <h2>Se connecter</h2>
-        <input type="email" id="login-email" placeholder="Email" required />
-        <input type="password" id="login-password" placeholder="Mot de passe" required />
-        <button type="submit">Connexion</button>
-      </form>
-
-      <!-- Formulaire Inscription (masqué par défaut) -->
-      <form id="register-form" class="hidden">
-        <h2>Créer un compte</h2>
-        <input type="text" id="register-username" placeholder="Nom de créateur" required />
-        <input type="email" id="register-email" placeholder="Email" required />
-        <input type="password" id="register-password" placeholder="Mot de passe (min 8 car.)" required minlength="8" />
-        <button type="submit">S'inscrire</button>
-      </form>
-
-      <!-- Zone d'affichage des messages d'erreur/succès -->
-      <p id="auth-message" class="message"></p>
-    </div>
-
-    <!-- 2. SECTION DASHBOARD (Visible si connecté) -->
-    <div id="dashboard-section" class="hidden">
-      <div class="header-bar">
-        <span>Connecté en tant que : <strong id="user-display">...</strong></span>
-        <button id="logout-btn">Se déconnecter</button>
-      </div>
-
-      <div class="card">
-        <h2>Statistiques Twitch</h2>
-        <p>Chaîne : <span id="channel-name">Chargement...</span></p>
-        <p>Statut : <span id="status">...</span></p>
-      </div>
-    </div>
+    <!-- Vue viendra se monter ici -->
+    <div id="app"></div>
 
     <script type="module" src="/src/main.js"></script>
   </body>
