@@ -4,23 +4,34 @@ import { db } from './initBdd.js';
 import { users, streamSessions, streamMetrics } from './schemas/index.js';
 
 async function seed() {
-    console.log('🌱 Recherche de ton compte...');
+    // Récupération de l'email depuis l'argument CLI (ex: node src/db/seed.js user@test.com)
+    // ou depuis une variable d'environnement SEED_USER_EMAIL
+    const targetEmail = process.argv[2] || process.env.SEED_USER_EMAIL;
 
-    // 1. Récupérer précisément ton compte par ton email
-    const [user] = await db.select().from(users).where(eq(users.email, 'pominuseventguard@gmail.com'));
+    let user;
+
+    if (targetEmail) {
+        console.log(`🌱 Recherche du compte avec l'email : ${targetEmail}...`);
+        const [foundUser] = await db.select().from(users).where(eq(users.email, targetEmail));
+        user = foundUser;
+    } else {
+        console.log('🌱 Aucun email spécifié, sélection du premier utilisateur en BDD...');
+        const [firstUser] = await db.select().from(users).limit(1);
+        user = firstUser;
+    }
 
     if (!user) {
-        console.error('❌ Aucun compte trouvé avec l\'email pominuseventguard@gmail.com.');
+        console.error('❌ Aucun utilisateur trouvé. Vérifie l\'email ou crée un compte sur VaporHub.');
         process.exit(1);
     }
 
-    console.log(`👤 Compte trouvé : ${user.username} (${user.id})`);
+    console.log(`👤 Compte ciblé : ${user.username} (${user.email} - ${user.id})`);
     console.log('📊 Génération des fausses sessions et courbes de viewers...');
 
     const now = Date.now();
     const oneHour = 60 * 60 * 1000;
 
-    // 2. Définir 2 fausses sessions réalistes
+    // Définir 2 fausses sessions réalistes
     const fakeSessions = [
         {
             title: '🔴 Soirée Tryhard & Ranked Valorant !',
@@ -54,15 +65,14 @@ async function seed() {
             endedAt: endedAt
         }).returning();
 
-        // 3. Générer des points de métrique toutes les 5 minutes
+        // Générer des points de métrique toutes les 5 minutes
         let currentViewers = fSession.baseViewers;
         const pointsCount = (fSession.durationHours * 60) / 5;
 
         for (let i = 0; i < pointsCount; i++) {
             const pointTime = new Date(fSession.startedAt.getTime() + i * 5 * 60 * 1000);
             
-            // Simulation d'une variation naturelle des viewers
-            const randomDelta = Math.floor(Math.random() * 9) - 4; // -4 à +4
+            const randomDelta = Math.floor(Math.random() * 9) - 4;
             currentViewers = Math.max(10, Math.min(fSession.peak, currentViewers + randomDelta));
 
             await db.insert(streamMetrics).values({
@@ -73,7 +83,7 @@ async function seed() {
         }
     }
 
-    console.log('✅ Fausses données générées avec succès pour ton compte !');
+    console.log('✅ Fausses données générées avec succès !');
     process.exit(0);
 }
 
@@ -81,4 +91,3 @@ seed().catch((err) => {
     console.error('Erreur seed :', err);
     process.exit(1);
 });
-
