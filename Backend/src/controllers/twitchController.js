@@ -1,24 +1,13 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db/initBdd.js';
 import { oauthTokens } from '../db/schemas/index.js';
-import { encrypt, decrypt } from '../utils/encryption.js';
-
-const TWITCH_AUTH_URL = 'https://id.twitch.tv/oauth2/authorize';
-const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
-const TWITCH_HELIX_URL = 'https://api.twitch.tv/helix';
+import { encrypt } from '../utils/encryption.js';
+import * as twitchService from '../services/twitchService.js';
+import * as trackerService from '../services/streamTrackerService.js';
 
 export async function getTwitchAuthUrl(req, res, next) {
     try {
-
-        const scopes = [
-            'user:read:email',
-            'channel:read:stream_key'
-        ].join(' ');
-
-        const authUrl = `${TWITCH_AUTH_URL}?client_id=${process.env.TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.TWITCH_REDIRECT_URI)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${req.user.userId}`;
-        
-        res.json({ url: authUrl });
-
+        res.json({ url: twitchService.buildAuthUrl(req.user.userId) });
     } catch (error) {
         next(error);
     }
@@ -26,153 +15,93 @@ export async function getTwitchAuthUrl(req, res, next) {
 
 export async function twitchCallback(req, res, next) {
     try {
-        const { code, state: userId, error} = req.query;
+        const { code, state: userId, error } = req.query;
+        if (error || !code) return res.redirect('http://localhost:5173/?error=twitch_denied');
 
-        if (error || !code) {
-            //@TODO voir pour rendre url non static
-            return res.redirect('http://localhost:5173/?error=twitch_denied')
-        }
-
-        // Échanger le code contre les tokens d'accès Twitch
-        const tokenParams = new URLSearchParams({
-            client_id: process.env.TWITCH_CLIENT_ID,
-            client_secret: process.env.TWITCH_CLIENT_SECRET,
-            code,
-            grant_type: 'authorization_code',
-            redirect_uri: process.env.TWITCH_REDIRECT_URI
-        });
-
-        //contacte Twitch
-        const tokenRes = await fetch(TWITCH_TOKEN_URL, {
-            method: 'POST',
-            body: tokenParams
-        });
-
-        const tokenData = await tokenRes.json();
-
-        if (!tokenRes.ok) {
-            //@TODO voir a rendre URL non static
-            return res.redirect('http://localhost:5173/?error=twitch_token_failed');
-        }
-
-        //Recup info user depuis twitch
-        const userRes = await fetch(`${TWITCH_HELIX_URL}/users`, {
-            headers: {
-                'Client-Id': process.env.TWITCH_CLIENT_ID,
-                'Authorization': `Bearer ${tokenData.access_token}`
-            }
-        });
-
-        const userData = await userRes.json();
-
-        const twitchUser = userData.data[0];
-
+        const tokenData = await twitchService.exchangeCodeForTokens(code);
+        const twitchUser = await twitchService.fetchUserProfile('', tokenData.access_token);
         const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
-    
-        // Vérifier si un token Twitch existe déjà pour cet user
+
         const [existing] = await db.select().from(oauthTokens).where(
-            and(
-                eq(oauthTokens.userId, userId),
-                eq(oauthTokens.provider, 'twitch')
-            )
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
         );
 
+        const payload = {
+            providerAccountId: twitchUser.id,
+            accessToken: encrypt(tokenData.access_token),
+            refreshToken: encrypt(tokenData.refresh_token),
+            expiresAt,
+            scope: tokenData.scope ? tokenData.scope.join(' ') : ''
+        };
+
         if (existing) {
-            // Mise à jour
-            await db.update(oauthTokens).set({
-                providerAccountId: twitchUser.id,
-                accessToken: encrypt(tokenData.access_token),
-                refreshToken: encrypt(tokenData.refresh_token),
-                expiresAt,
-                scope: tokenData.scope ? tokenData.scope.join(' ') : '',
-                updatedAt: new Date()
-            }).where(eq(oauthTokens.id, existing.id));
+            await db.update(oauthTokens).set({ ...payload, updatedAt: new Date() }).where(eq(oauthTokens.id, existing.id));
         } else {
-            // Insertion
-            await db.insert(oauthTokens).values({
-                userId,
-                provider: 'twitch',
-                providerAccountId: twitchUser.id,
-                accessToken: encrypt(tokenData.access_token),
-                refreshToken: encrypt(tokenData.refresh_token),
-                expiresAt,
-                scope: tokenData.scope ? tokenData.scope.join(' ') : ''
-            });
+            await db.insert(oauthTokens).values({ userId, provider: 'twitch', ...payload });
         }
 
-        // Rediriger le créateur vers le Frontend avec confirmation
-        //@TODO voir pour rendre url non static
         res.redirect('http://localhost:5173/?twitch_linked=true');
-
     } catch (error) {
         next(error);
     }
 }
 
-export async function getLiveStatus(req, res, next) {
+export async function getCurrentLiveStatus(req, res, next) {
     try {
-        const userId = req.user.userId;
-
-        // Récupérer le token Twitch du créateur en BDD
         const [tokenRecord] = await db.select().from(oauthTokens).where(
-            and(
-                eq(oauthTokens.userId, userId),
-                eq(oauthTokens.provider, 'twitch')
-            )
+            and(eq(oauthTokens.userId, req.user.userId), eq(oauthTokens.provider, 'twitch'))
         );
 
-        if (!tokenRecord) {
-            return res.json({
-                linked: false,
-                message: 'Aucun compte Twitch lié'
-            });
-        }
+        if (!tokenRecord) return res.json({ linked: false, message: 'Aucun compte Twitch lié' });
 
-        const decryptedAccessToken = decrypt(tokenRecord.accessToken);
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.json({ linked: false, message: 'Connexion expirée' });
 
-        // Appeler l'API Helix pour vérifier si le stream est en live
-        const streamRes = await fetch(`${TWITCH_HELIX_URL}/streams?user_id=${tokenRecord.providerAccountId}`, {
-            headers: {
-                'Client-Id': process.env.TWITCH_CLIENT_ID,
-                'Authorization': `Bearer ${decryptedAccessToken}`
-            }
-        });
+        const twitchUser = await twitchService.fetchUserProfile(tokenRecord.providerAccountId, accessToken);
+        const stream = await twitchService.fetchLiveStream(tokenRecord.providerAccountId, accessToken);
 
-        const streamData = await streamRes.json();
-
-        // Si le tableau data n'est pas vide -> La chaîne est en live !
-        if (streamData.data && streamData.data.length > 0) {
-            const stream = streamData.data[0];
+        if (stream) {
+            await trackerService.recordLiveSession(req.user.userId, stream);
             return res.json({
                 linked: true,
-                channel: stream.user_name,
+                channel: twitchUser.display_name,
+                avatar: twitchUser.profile_image_url,
                 isLive: true,
                 title: stream.title,
                 game: stream.game_name,
                 viewerCount: stream.viewer_count,
-                startedAt: stream.started_at
+                startedAt: stream.started_at,
+                thumbnailUrl: stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180')
             });
         }
 
-        // Sinon, la chaîne est hors ligne : on récupère juste le nom de la chaîne
-        const userRes = await fetch(`${TWITCH_HELIX_URL}/users?id=${tokenRecord.providerAccountId}`, {
-            headers: {
-                'Client-Id': process.env.TWITCH_CLIENT_ID,
-                'Authorization': `Bearer ${decryptedAccessToken}`
-            }
-        });
-
-        const userData = await userRes.json();
-
-        const channelName = userData.data && userData.data[0] ? userData.data[0].display_name : 'Inconnu';
-        
+        await trackerService.closeOpenSession(req.user.userId);
         res.json({
             linked: true,
-            channel: channelName,
+            channel: twitchUser.display_name,
+            avatar: twitchUser.profile_image_url,
             isLive: false,
             viewerCount: 0
         });
+    } catch (error) {
+        next(error);
+    }
+}
 
+export async function getStreamHistory(req, res, next) {
+    try {
+        const history = await trackerService.getSessionsHistory(req.user.userId);
+        res.json(history);
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getStreamMetrics(req, res, next) {
+    try {
+        const data = await trackerService.getSessionMetrics(req.params.sessionId, req.user.userId);
+        if (!data) return res.status(404).json({ error: 'Session introuvable' });
+        res.json(data);
     } catch (error) {
         next(error);
     }
