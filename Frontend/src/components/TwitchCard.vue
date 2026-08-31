@@ -1,34 +1,30 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { getTwitchStatsApi, getTwitchAuthUrlApi } from '../api/twitch.js';
+import { Radio, Users, Gamepad2, FileText, RefreshCw, AlertCircle, ExternalLink } from 'lucide-vue-next';
 
 const stats = ref(null);
 const loading = ref(true);
 const error = ref('');
+const isRefreshing = ref(false);
 let pollInterval = null;
 
-// Charger les données du live (avec option "silencieuse" pour le polling)
 async function loadStats(isSilent = false) {
-  if (!isSilent) {
-    loading.value = true;
-  }
+  if (!isSilent) loading.value = true;
+  else isRefreshing.value = true;
+  
   error.value = '';
 
   try {
     stats.value = await getTwitchStatsApi();
   } catch (err) {
-    // Si c'est un refresh en arrière-plan et que ça échoue, on évite d'effacer les données précédentes
-    if (!isSilent) {
-      error.value = err.message;
-    }
+    if (!isSilent) error.value = err.message;
   } finally {
-    if (!isSilent) {
-      loading.value = false;
-    }
+    loading.value = false;
+    isRefreshing.value = false;
   }
 }
 
-// Redirection vers Twitch pour lier le compte
 async function handleLinkTwitch() {
   try {
     const url = await getTwitchAuthUrlApi();
@@ -38,7 +34,6 @@ async function handleLinkTwitch() {
   }
 }
 
-// Gestion de la visibilité de l'onglet (met en pause le polling si l'utilisateur change d'onglet)
 function handleVisibilityChange() {
   if (document.hidden) {
     stopPolling();
@@ -49,9 +44,9 @@ function handleVisibilityChange() {
 }
 
 function startPolling() {
-  stopPolling(); // Sécurité : évite d'avoir 2 timers en parallèle
+  stopPolling();
   pollInterval = setInterval(() => {
-    loadStats(true); // Actualisation silencieuse toutes les 30 secondes
+    loadStats(true);
   }, 30000);
 }
 
@@ -63,201 +58,141 @@ function stopPolling() {
 }
 
 onMounted(() => {
-  // Nettoyer l'URL si retour de Twitch (?twitch_linked=true)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('twitch_linked')) {
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
-  // 1. Premier chargement avec spinner
   loadStats(false);
-
-  // 2. Démarrer le polling automatique
   startPolling();
-
-  // 3. Écouter si l'onglet passe en arrière-plan
   document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 
 onUnmounted(() => {
-  // Détruire le timer et l'écouteur d'événements quand le composant est démonté
   stopPolling();
   document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 </script>
 
 <template>
-  <div class="card twitch-card">
-    <div class="card-title-bar">
-      <h2>🎮 Twitch Live Tracker</h2>
-      <span v-if="stats && stats.linked" class="pulse-indicator" title="Synchronisation automatique active (30s)"></span>
+  <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative">
+    
+    <!-- En-tête sobre de la carte -->
+    <div class="flex items-center gap-2.5 mb-6 pb-4 border-b border-zinc-800/80">
+      <div class="p-2 bg-purple-600/10 text-purple-400 rounded-xl border border-purple-500/20">
+        <Radio class="w-5 h-5" />
+      </div>
+      <h2 class="text-lg font-bold text-zinc-100">Twitch Live Tracker</h2>
     </div>
 
-    <!-- État Chargement initial -->
-    <p v-if="loading">Chargement des données Twitch...</p>
+    <!-- État 1 : Chargement initial -->
+    <div v-if="loading" class="py-12 text-center text-zinc-500 text-sm flex items-center justify-center gap-2">
+      <RefreshCw class="w-5 h-5 animate-spin text-purple-400" />
+      <span>Chargement des données Twitch en direct...</span>
+    </div>
 
-    <!-- État Erreur -->
-    <p v-else-if="error" class="message error">{{ error }}</p>
+    <!-- État 2 : Erreur -->
+    <div v-else-if="error" class="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm flex items-center gap-2.5">
+      <AlertCircle class="w-5 h-5 shrink-0" />
+      <span>{{ error }}</span>
+    </div>
 
-    <!-- État 1 : Compte NON lié -->
-    <div v-else-if="stats && !stats.linked" class="not-linked">
-      <p>Tu n'as pas encore lié ta chaîne Twitch à VaporHub.</p>
-      <button class="btn-twitch" @click="handleLinkTwitch">
-        🟣 Lier mon compte Twitch
+    <!-- État 3 : Compte NON lié -->
+    <div v-else-if="stats && !stats.linked" class="py-8 text-center">
+      <p class="text-zinc-400 text-sm mb-6 max-w-sm mx-auto">
+        Liez votre compte Twitch à VaporHub pour suivre vos streams, votre audience et vos performances en temps réel.
+      </p>
+      <button 
+        @click="handleLinkTwitch"
+        class="inline-flex items-center gap-2 bg-[#9146ff] hover:bg-[#772ce8] text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-purple-900/30 transition duration-200 cursor-pointer"
+      >
+        <span>Lier mon compte Twitch</span>
+        <ExternalLink class="w-4 h-4" />
       </button>
     </div>
 
-    <!-- État 2 : Compte LIÉ -->
-    <div v-else-if="stats && stats.linked" class="linked-info">
+    <!-- État 4 : Compte LIÉ -->
+    <div v-else-if="stats && stats.linked" class="space-y-6">
       
-      <!-- En-tête avec Avatar et Nom de la chaîne -->
-      <div class="channel-header">
-        <img v-if="stats.avatar" :src="stats.avatar" alt="Avatar Twitch" class="avatar" />
+      <!-- Profil de la chaîne (Avatar + Nom + Statut) -->
+      <div class="flex items-center gap-4">
+        <div class="relative">
+          <img 
+            v-if="stats.avatar" 
+            :src="stats.avatar" 
+            alt="Avatar Twitch" 
+            class="w-16 h-16 rounded-full border-2 border-purple-500 shadow-md object-cover bg-zinc-950" 
+          />
+          <div v-else class="w-16 h-16 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 border border-purple-500/30">
+            <Radio class="w-8 h-8" />
+          </div>
+          <!-- Point d'état sur l'avatar -->
+          <span 
+            :class="['absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-zinc-900', 
+                     stats.isLive ? 'bg-rose-500' : 'bg-zinc-500']"
+          ></span>
+        </div>
+
         <div>
-          <h3>{{ stats.channel }}</h3>
-          <span :class="['badge', stats.isLive ? 'live-badge' : 'offline-badge']">
-            {{ stats.isLive ? '🔴 EN LIVE' : '⚪ HORS LIGNE' }}
+          <h3 class="text-xl font-extrabold text-zinc-100">{{ stats.channel }}</h3>
+          <span 
+            :class="['inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold mt-1 border', 
+                     stats.isLive ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-zinc-800/80 text-zinc-400 border-zinc-700']"
+          >
+            <span v-if="stats.isLive" class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+            {{ stats.isLive ? 'EN DIRECT' : 'HORS LIGNE' }}
           </span>
         </div>
       </div>
 
-      <!-- Détails si en live -->
-      <div v-if="stats.isLive" class="live-box">
-        <div class="viewer-count">
-          👥 <strong>{{ stats.viewerCount }}</strong> spectateurs en direct
-        </div>
-        <p v-if="stats.game">🎮 Jeu : <strong>{{ stats.game }}</strong></p>
-        <p v-if="stats.title">📝 Titre : <em>{{ stats.title }}</em></p>
+      <!-- Détails si le streamer est EN LIVE -->
+      <div v-if="stats.isLive" class="bg-zinc-950/70 border border-zinc-800/90 rounded-xl p-5 space-y-3">
         
-        <img v-if="stats.thumbnailUrl" :src="stats.thumbnailUrl" alt="Miniature du live" class="live-preview" />
+        <!-- Nombre de spectateurs -->
+        <div class="flex items-center gap-2 text-emerald-400 font-extrabold text-lg">
+          <Users class="w-5 h-5 text-emerald-400" />
+          <span>{{ stats.viewerCount }} spectateurs en direct</span>
+        </div>
+
+        <!-- Catégorie / Jeu -->
+        <div v-if="stats.game" class="flex items-center gap-2 text-sm text-zinc-300">
+          <Gamepad2 class="w-4 h-4 text-purple-400 shrink-0" />
+          <span class="text-zinc-500">Jeu :</span>
+          <span class="font-medium text-zinc-200">{{ stats.game }}</span>
+        </div>
+
+        <!-- Titre du stream -->
+        <div v-if="stats.title" class="flex items-start gap-2 text-sm text-zinc-300">
+          <FileText class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+          <span class="text-zinc-500 shrink-0">Titre :</span>
+          <span class="italic text-zinc-300">{{ stats.title }}</span>
+        </div>
+
+        <!-- Miniature du live -->
+        <div v-if="stats.thumbnailUrl" class="mt-4 pt-2">
+          <img 
+            :src="stats.thumbnailUrl" 
+            alt="Aperçu du stream" 
+            class="rounded-lg border border-zinc-800 max-w-sm w-full shadow-md" 
+          />
+        </div>
+
       </div>
 
-      <!-- Footer discret avec indicateur d'auto-actualisation -->
-      <div class="actions">
-        <span class="sync-text">⚡ Mis à jour auto toutes les 30s</span>
-        <button class="btn-refresh" @click="loadStats(false)">Forcer l'actualisation</button>
+      <!-- Barre d'action inférieure -->
+      <div class="flex justify-between items-center pt-2 text-xs text-zinc-500">
+        <span>Synchronisation active en arrière-plan</span>
+        <button 
+          @click="loadStats(true)" 
+          :disabled="isRefreshing"
+          class="flex items-center gap-1.5 bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 hover:text-white px-3 py-1.5 rounded-lg border border-zinc-700/50 transition cursor-pointer disabled:opacity-50"
+        >
+          <RefreshCw :class="['w-3.5 h-3.5', { 'animate-spin': isRefreshing }]" />
+          <span>Actualiser</span>
+        </button>
       </div>
+
     </div>
+
   </div>
 </template>
-
-<style scoped>
-.card-title-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.card-title-bar h2 {
-  margin: 0;
-}
-
-.pulse-indicator {
-  width: 10px;
-  height: 10px;
-  background-color: #00ff66;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #00ff66;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.7; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.7; }
-}
-
-.channel-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  border: 2px solid #9146ff;
-}
-
-.badge {
-  font-size: 0.8rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-  font-weight: bold;
-  display: inline-block;
-  margin-top: 0.25rem;
-}
-
-.live-badge {
-  background: #ff005522;
-  color: #ff3366;
-  border: 1px solid #ff3366;
-}
-
-.offline-badge {
-  background: #33333366;
-  color: #888;
-  border: 1px solid #555;
-}
-
-.live-box {
-  background: #252525;
-  padding: 1rem;
-  border-radius: 8px;
-  border-left: 4px solid #ff3366;
-  margin-bottom: 1rem;
-}
-
-.viewer-count {
-  font-size: 1.1rem;
-  color: #00ff88;
-  margin-bottom: 0.5rem;
-}
-
-.live-preview {
-  width: 100%;
-  max-width: 320px;
-  border-radius: 6px;
-  margin-top: 0.75rem;
-  border: 1px solid #444;
-}
-
-.btn-twitch {
-  background: #9146ff;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 1rem;
-}
-
-.sync-text {
-  font-size: 0.8rem;
-  color: #777;
-}
-
-.btn-refresh {
-  background: #333;
-  color: white;
-  border: 1px solid #555;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.btn-refresh:hover {
-  background: #444;
-}
-</style>
