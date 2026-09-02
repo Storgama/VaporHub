@@ -1,43 +1,62 @@
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import apiRouter from './routes/api.js';
 import { errorHandler } from './middlewares/errorHandler.js';
-import { runHealthCheck } from './utils/healthcheck.js'
+import { runHealthCheck } from './utils/healthcheck.js';
 
 const app = express();
 
 /**
- * On ajoute ce qu'on appel des middleware c'est pour nous simplifier la vie ça
- * en gros toute requete que tu ferra passera pas ces middlewares
+ * 1. Sécurité des en-têtes HTTP
+ * Supprime X-Powered-By, active HSTS, CSP, X-Frame-Options, etc.
  */
-app.use(cors()); // Autorise les requêtes depuis ton futur Frontend
-app.use(express.json()); // Parse les JSON en gros tu passe d'un gros boublibouga a ça {piou => proute}
+app.use(helmet());
 
 /**
- * Route Pour obtenir le résultat de check du système global
+ * 2. Restriction CORS
+ * N'autorise que notre Frontend officiel à communiquer avec l'API
+ */
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true
+}));
+
+app.use(express.json());
+
+/**
+ * Route de santé du système
  */
 app.get('/health', async (req, res) => {
     const health = await runHealthCheck();
-    const statusCode = health.status === 'OK' ? 200 : 503;
+    const statusCode = health.status === 'ok' ? 200 : 503;
     res.status(statusCode).json(health);
 });
 
 /**
- * Ajout des Route (les URL pour dire ce qu'on réponds)
- * Le '/api' c'est par ce j'ai la flemme de le mettre a chaque route donc il sera par défault
+ * Standard security.txt (RFC 9116)
+ * Totalement configurable via SECURITY_CONTACT
+ */
+app.get('/.well-known/security.txt', (req, res) => {
+    const contact = process.env.SECURITY_CONTACT || 'mailto:contact@vaporhub.app';
+    res.type('text/plain');
+    res.send(`Contact: ${contact} Expires: 2027-12-31T23:59:59.000Z Preferred-Languages: fr, en`);
+});
+
+/**
+ * Routes API
  */
 app.use('/api', apiRouter);
 
 /**
- * ça c'est jsute un backup si la route existe pas
+ * Gestion 404
  */
 app.use((req, res) => {
     res.status(404).json({ error: 'Route non trouvée sur Vaporhub API' });
 });
 
 /**
- * ça c'est pour nous afficher tout les erreurs durant la période de dev pour l'instant on va le laisser 
- * actif quoi qu'il arrive
+ * Gestionnaire d'erreurs
  */
 app.use(errorHandler);
 
