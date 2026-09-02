@@ -13,23 +13,32 @@ vi.mock('chart.js/auto', () => {
     };
 });
 
-describe('📈 Composant : TwitchHistory.vue', () => {
+describe('📈 Composant : TwitchHistory.vue (Analytics de Rétention)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
     it('doit afficher le message "aucun stream" si l\'historique est vide', async () => {
         vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce([]);
+        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValueOnce(null);
 
         const wrapper = mount(TwitchHistory);
         await wrapper.vm.$nextTick();
         await new Promise(r => setTimeout(r, 10));
 
-        expect(wrapper.text()).toContain('Historique des Streams & Analytics');
+        expect(wrapper.text()).toContain('Analytics de Rétention & Audience');
         expect(wrapper.text()).toContain('Aucun stream enregistré pour le moment');
     });
 
-    it('doit lister les sessions et charger les métriques du premier stream par défaut', async () => {
+    it('doit afficher les 4 cartes KPIs de Rétention et charger le premier stream avec son badge', async () => {
+        const mockSummary = {
+            totalStreams: 5,
+            totalWatchTimeHours: 154.5,
+            overallRetentionRate: 88,
+            overallAverageViewers: 50,
+            highestPeakViewers: 120
+        };
+
         const mockSessions = [
             {
                 id: 'sess_1',
@@ -44,22 +53,35 @@ describe('📈 Composant : TwitchHistory.vue', () => {
         const mockMetrics = {
             session: mockSessions[0],
             metrics: [
-                { timestamp: '2026-09-02T10:00:00Z', viewerCount: 20 },
+                { timestamp: '2026-09-02T10:00:00Z', viewerCount: 50 },
                 { timestamp: '2026-09-02T11:00:00Z', viewerCount: 64 }
-            ]
+            ],
+            retention: {
+                retentionRate: 89,
+                watchTimeHours: 162,
+                retentionTier: { label: 'Audience Captive', badge: 'captive' }
+            }
         };
 
+        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValueOnce(mockSummary);
         vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce(mockSessions);
         vi.spyOn(twitchApi, 'getTwitchMetricsApi').mockResolvedValueOnce(mockMetrics);
 
         const wrapper = mount(TwitchHistory);
         await wrapper.vm.$nextTick();
-        await new Promise(r => setTimeout(r, 20));
+        await new Promise(r => setTimeout(r, 30));
 
-        expect(wrapper.text()).toContain('Soirée Ranked Valorant');
-        expect(wrapper.text()).toContain('Valorant');
-        expect(wrapper.text()).toContain('64');
-        expect(wrapper.text()).toContain('3h 0m'); // Durée
+        // 1. Vérification des 4 cartes KPIs globales
+        expect(wrapper.text()).toContain('Watch Time Cumulé');
+        expect(wrapper.text()).toContain('154.5');
+        expect(wrapper.text()).toContain('Rétention Moyenne');
+        expect(wrapper.text()).toContain('88%');
+        expect(wrapper.text()).toContain('Moyenne de Viewers');
+        expect(wrapper.text()).toContain('Pic Record');
+
+        // 2. Vérification des badges de rétention sur le stream sélectionné
+        expect(wrapper.text()).toContain('Audience Captive (89%)');
+        expect(wrapper.text()).toContain('162 h vues');
     });
 
     it('doit changer de session sélectionnée quand on clique sur un stream', async () => {
@@ -68,10 +90,12 @@ describe('📈 Composant : TwitchHistory.vue', () => {
             { id: 'sess_2', title: 'Live 2', startedAt: '2026-09-02T15:00:00Z' }
         ];
 
+        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValue(null);
         vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce(mockSessions);
         const metricsSpy = vi.spyOn(twitchApi, 'getTwitchMetricsApi').mockResolvedValue({
             session: mockSessions[1],
-            metrics: []
+            metrics: [],
+            retention: { retentionRate: 75, watchTimeHours: 80, retentionTier: { label: 'Audience Stable', badge: 'stable' } }
         });
 
         const wrapper = mount(TwitchHistory);
@@ -85,4 +109,3 @@ describe('📈 Composant : TwitchHistory.vue', () => {
         }
     });
 });
-

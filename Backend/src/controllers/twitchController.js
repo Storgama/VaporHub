@@ -4,6 +4,7 @@ import { oauthTokens } from '../db/schemas/index.js';
 import { encrypt } from '../utils/encryption.js';
 import * as twitchService from '../services/twitchService.js';
 import * as trackerService from '../services/streamTrackerService.js';
+import * as analyticsService from '../services/analyticsService.js';
 
 export async function getTwitchAuthUrl(req, res, next) {
     try {
@@ -103,7 +104,55 @@ export async function getStreamMetrics(req, res, next) {
     try {
         const data = await trackerService.getSessionMetrics(req.params.sessionId, req.user.userId);
         if (!data) return res.status(404).json({ error: 'Session introuvable' });
-        res.json(data);
+        
+        const retention = analyticsService.calculateRetentionMetrics(data.session, data.metrics);
+        res.json({ ...data, retention });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * Récupère le résumé global des KPIs (30 derniers jours) — Version Haute Performance
+ */
+export async function getAnalyticsSummary(req, res, next) {
+    try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        // ⚡ 1 seule requête groupée pour toutes les sessions des 30 derniers jours
+        const sessionsWithMetrics = await trackerService.getAllSessionsWithMetrics(req.user.userId, 50, thirtyDaysAgo);
+        // Filtrage et calcul de la rétention en mémoire (ultra-rapide)
+        const calculatedStreams = sessionsWithMetrics
+            .filter(item => new Date(item.session.startedAt) >= thirtyDaysAgo)
+            .map(({ session, metrics }) => {
+                const metricsResult = analyticsService.calculateRetentionMetrics(session, metrics);
+                return { ...session, ...metricsResult };
+            });
+        const summary = analyticsService.computeMonthlySummary(calculatedStreams);
+        res.json(summary);
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getAnalyticsBreakdown(req, res, next) {
+    try {
+        const { period } = req.query;
+        let sinceDate = null;
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+        if (period === 'weekly') sinceDate = new Date(now - 7 * oneDay);
+        else if (period === 'monthly') sinceDate = new Date(now - 30 * oneDay);
+        else if (period === 'yearly') sinceDate = new Date(now - 365 * oneDay);
+        const sessionsWithMetrics = await trackerService.getAllSessionsWithMetrics(req.user.userId, 500, sinceDate);
+        const filtered = sinceDate 
+            ? sessionsWithMetrics.filter(item => new Date(item.session.startedAt) >= sinceDate)
+            : sessionsWithMetrics;
+        const calculatedStreams = filtered.map(({ session, metrics }) => {
+            const metricsResult = analyticsService.calculateRetentionMetrics(session, metrics);
+            return { ...session, ...metricsResult };
+        });
+        const breakdown = analyticsService.computeFrequencyAndBreakdown(calculatedStreams, period || 'all');
+        res.json(breakdown);
     } catch (error) {
         next(error);
     }

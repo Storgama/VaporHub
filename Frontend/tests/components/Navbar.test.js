@@ -27,15 +27,31 @@ describe('🧩 Composant : Navbar.vue', () => {
         expect(wrapper.find('header').exists()).toBe(false);
     });
 
-    it('doit afficher le logo, le pseudo et le bouton de déconnexion si connecté', async () => {
+    it('doit afficher le logo, les onglets de navigation, le pseudo et le bouton de déconnexion si connecté', async () => {
+        mockUser.value = 'StreamerMaster';
+
+        const wrapper = mount(Navbar, {
+            props: { currentView: 'dashboard' }
+        });
+
+        expect(wrapper.find('header').exists()).toBe(true);
+        expect(wrapper.text()).toContain('VaporHub');
+        expect(wrapper.text()).toContain('Dashboard');
+        expect(wrapper.text()).toContain('Statistiques');
+        expect(wrapper.text()).toContain('StreamerMaster');
+        expect(wrapper.text()).toContain('Déconnexion');
+    });
+
+    it('doit émettre un événement change-view quand on clique sur Statistiques', async () => {
         mockUser.value = 'StreamerMaster';
 
         const wrapper = mount(Navbar);
 
-        expect(wrapper.find('header').exists()).toBe(true);
-        expect(wrapper.text()).toContain('VaporHub');
-        expect(wrapper.text()).toContain('StreamerMaster');
-        expect(wrapper.text()).toContain('Déconnexion');
+        const statsBtn = wrapper.findAll('button').find(b => b.text().includes('Statistiques'));
+        await statsBtn.trigger('click');
+
+        expect(wrapper.emitted('change-view')).toBeTruthy();
+        expect(wrapper.emitted('change-view')[0]).toEqual(['analytics']);
     });
 
     it('doit appeler la fonction logout quand on clique sur Déconnexion', async () => {
@@ -43,10 +59,9 @@ describe('🧩 Composant : Navbar.vue', () => {
 
         const wrapper = mount(Navbar);
 
-        const logoutBtn = wrapper.find('button');
+        const logoutBtn = wrapper.findAll('button').find(b => b.text().includes('Déconnexion'));
         await logoutBtn.trigger('click');
 
         expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 });
-
