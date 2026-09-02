@@ -10,7 +10,10 @@
     "dev:backend": "npm run dev --prefix Backend",
     "dev:frontend": "npm run dev --prefix Frontend",
     "dev": "concurrently -k -n \"BACK,FRONT\" -c \"magenta,cyan\" \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:backend": "npm run test --prefix Backend",
+    "test:frontend": "npm run test --prefix Frontend",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:coverage": "npm run test:coverage --prefix Backend && npm run test:coverage --prefix Frontend"
   },
   "repository": {
     "type": "git",
