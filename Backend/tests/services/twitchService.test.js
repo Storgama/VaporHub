@@ -3,13 +3,21 @@ import {
     buildAuthUrl, 
     fetchUserProfile, 
     fetchLiveStream, 
-    exchangeCodeForTokens,
-    getValidAccessToken
+    exchangeCodeForTokens, 
+    getValidAccessToken 
 } from '../../src/services/twitchService.js';
 import { encrypt } from '../../src/utils/encryption.js';
+import { db } from '../../src/db/initBdd.js';
+
+vi.mock('../../src/db/initBdd.js', () => ({
+    db: {
+        update: vi.fn()
+    }
+}));
 
 describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
     beforeEach(() => {
+        vi.clearAllMocks();
         process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
         process.env.TWITCH_CLIENT_ID = 'test_twitch_client_id';
         process.env.TWITCH_CLIENT_SECRET = 'test_twitch_client_secret';
@@ -90,11 +98,74 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
     it('doit renvoyer le token en clair s\'il n\'est pas encore expiré', async () => {
         const tokenRecord = {
             accessToken: encrypt('token_encore_valide'),
-            expiresAt: new Date(Date.now() + 3600 * 1000) // Expire dans 1h
+            expiresAt: new Date(Date.now() + 3600 * 1000)
         };
 
         const token = await getValidAccessToken(tokenRecord);
         expect(token).toBe('token_encore_valide');
     });
-});
 
+    describe('Auto-Refresh du token expiré', () => {
+        it('doit rafraîchir le token auprès de Twitch et mettre à jour la BDD si expiré', async () => {
+            const tokenRecord = {
+                id: 'token_db_id_1',
+                accessToken: encrypt('ancien_token'),
+                refreshToken: encrypt('ancien_refresh_token'),
+                expiresAt: new Date(Date.now() - 1000) // Expiré
+            };
+
+            const mockRefreshResponse = {
+                access_token: 'tout_nouveau_token',
+                refresh_token: 'tout_nouveau_refresh',
+                expires_in: 14400
+            };
+
+            vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+                ok: true,
+                json: async () => mockRefreshResponse
+            });
+
+            db.update.mockReturnValueOnce({
+                set: vi.fn().mockReturnValueOnce({
+                    where: vi.fn().mockResolvedValueOnce({})
+                })
+            });
+
+            const newToken = await getValidAccessToken(tokenRecord);
+
+            expect(newToken).toBe('tout_nouveau_token');
+            expect(db.update).toHaveBeenCalled();
+        });
+
+        it('doit retourner null si Twitch rejette la demande de refresh', async () => {
+            const tokenRecord = {
+                id: 'token_db_id_1',
+                accessToken: encrypt('ancien_token'),
+                refreshToken: encrypt('refresh_revoque'),
+                expiresAt: new Date(Date.now() - 1000)
+            };
+
+            vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+                ok: false,
+                json: async () => ({ message: 'Invalid refresh token' })
+            });
+
+            const newToken = await getValidAccessToken(tokenRecord);
+            expect(newToken).toBeNull();
+        });
+
+        it('doit capturer les exceptions réseau et retourner null proprement', async () => {
+            const tokenRecord = {
+                id: 'token_db_id_1',
+                accessToken: encrypt('ancien_token'),
+                refreshToken: encrypt('refresh_valide'),
+                expiresAt: new Date(Date.now() - 1000)
+            };
+
+            vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Erreur réseau'));
+
+            const newToken = await getValidAccessToken(tokenRecord);
+            expect(newToken).toBeNull();
+        });
+    });
+});
