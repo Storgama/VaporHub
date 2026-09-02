@@ -76,3 +76,97 @@ export function computeMonthlySummary(calculatedStreams = []) {
         highestPeakViewers
     };
 }
+
+/**
+ * 3. Calcule la fréquence de stream et l'évolution temporelle (Hebdo, Mensuel, Annuel, Tout)
+ */
+export function computeFrequencyAndBreakdown(calculatedStreams = [], period = 'all') {
+    if (!calculatedStreams || calculatedStreams.length === 0) {
+        return {
+            totalStreams: 0,
+            totalWatchTimeHours: 0,
+            totalStreamHours: 0,
+            overallAverageViewers: 0,
+            overallRetentionRate: 0,
+            highestPeakViewers: 0,
+            streamsPerWeek: 0,
+            topDays: [],
+            evolutionTimeline: []
+        };
+    }
+
+    const totalStreams = calculatedStreams.length;
+    const totalWatchTimeHours = Math.round(calculatedStreams.reduce((acc, s) => acc + (s.watchTimeHours || 0), 0) * 10) / 10;
+    const totalStreamHours = Math.round(calculatedStreams.reduce((acc, s) => acc + (s.durationHours || 0), 0) * 10) / 10;
+    const highestPeakViewers = Math.max(...calculatedStreams.map(s => s.peakViewers || 0));
+    const overallRetentionRate = Math.round(calculatedStreams.reduce((acc, s) => acc + (s.retentionRate || 0), 0) / totalStreams);
+    const overallAverageViewers = Math.round(calculatedStreams.reduce((acc, s) => acc + (s.averageViewers || 0), 0) / totalStreams);
+
+    // Répartition par jour de la semaine (Mardi, Jeudi, etc.)
+    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const dayCounts = {};
+    dayNames.forEach(d => { dayCounts[d] = 0; });
+
+    calculatedStreams.forEach(s => {
+        const day = dayNames[new Date(s.startedAt).getDay()];
+        if (dayCounts[day] !== undefined) dayCounts[day]++;
+    });
+
+    const topDays = Object.entries(dayCounts)
+        .filter(([_, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([day, count]) => ({ day, count, percentage: Math.round((count / totalStreams) * 100) }));
+
+    // Calcul de la fréquence moyenne de stream par semaine
+    const dates = calculatedStreams.map(s => new Date(s.startedAt).getTime());
+    const minDate = Math.min(...dates);
+    const maxDate = Math.max(...dates);
+    const diffWeeks = Math.max(1, (maxDate - minDate) / (1000 * 60 * 60 * 24 * 7));
+    const streamsPerWeek = Math.round((totalStreams / diffWeeks) * 10) / 10;
+
+    // Timeline chronologique pour le grand graphique d'évolution
+    const timelineMap = {};
+    const isShortPeriod = period === 'weekly' || period === 'monthly';
+    calculatedStreams.forEach(s => {
+        const d = new Date(s.startedAt);
+        const key = isShortPeriod
+            ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = isShortPeriod
+            ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+            : d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+        if (!timelineMap[key]) {
+            timelineMap[key] = { 
+                key, 
+                label, 
+                watchTime: 0, 
+                avgViewers: 0, 
+                count: 0 
+            };
+        }
+        timelineMap[key].watchTime += (s.watchTimeHours || 0);
+        timelineMap[key].avgViewers += (s.averageViewers || 0);
+        timelineMap[key].count++;
+    });
+
+    const evolutionTimeline = Object.values(timelineMap)
+        .sort((a, b) => a.key.localeCompare(b.key))
+        .map(t => ({
+            label: t.label,
+            watchTime: Math.round(t.watchTime * 10) / 10,
+            avgViewers: Math.round(t.avgViewers / t.count),
+            streamsCount: t.count
+        }));
+
+    return {
+        totalStreams,
+        totalWatchTimeHours,
+        totalStreamHours,
+        overallAverageViewers,
+        overallRetentionRate,
+        highestPeakViewers,
+        streamsPerWeek,
+        topDays,
+        evolutionTimeline
+    };
+}

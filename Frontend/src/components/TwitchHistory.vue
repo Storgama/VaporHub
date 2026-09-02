@@ -1,11 +1,13 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
-import { getTwitchHistoryApi, getTwitchMetricsApi } from '../api/twitch.js';
+import { getTwitchHistoryApi, getTwitchMetricsApi, getTwitchSummaryApi } from '../api/twitch.js';
 import Chart from 'chart.js/auto';
-import { TrendingUp, Users, Calendar, Clock, Gamepad2, Layers, RefreshCw } from 'lucide-vue-next';
+import { TrendingUp, Users, Calendar, Clock, Gamepad2, Layers, RefreshCw, Flame, Eye, Trophy } from 'lucide-vue-next';
 
 const history = ref([]);
+const summary = ref(null);
 const selectedSession = ref(null);
+const selectedRetention = ref(null);
 const loading = ref(true);
 const chartCanvas = ref(null);
 let chartInstance = null;
@@ -27,11 +29,18 @@ function formatDuration(start, end) {
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 }
 
-// Charger l'historique
-async function loadHistory() {
+// Charger l'historique et le résumé
+async function loadAnalytics() {
   loading.value = true;
   try {
-    history.value = await getTwitchHistoryApi();
+    const [historyData, summaryData] = await Promise.all([
+      getTwitchHistoryApi(),
+      getTwitchSummaryApi().catch(() => null)
+    ]);
+
+    history.value = historyData;
+    summary.value = summaryData;
+
     if (history.value.length > 0) {
       selectSession(history.value[0]);
     }
@@ -47,6 +56,7 @@ async function selectSession(session) {
   selectedSession.value = session;
   try {
     const data = await getTwitchMetricsApi(session.id);
+    selectedRetention.value = data.retention || null;
     await nextTick();
     renderChart(data.metrics);
   } catch (err) {
@@ -64,7 +74,6 @@ function renderChart(metrics) {
 
   const ctx = chartCanvas.value.getContext('2d');
   
-  // Création d'un dégradé lumineux sous la courbe
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
   gradient.addColorStop(0, 'rgba(145, 70, 255, 0.4)');
   gradient.addColorStop(1, 'rgba(145, 70, 255, 0.0)');
@@ -127,7 +136,7 @@ function renderChart(metrics) {
 }
 
 onMounted(() => {
-  loadHistory();
+  loadAnalytics();
 });
 </script>
 
@@ -140,22 +149,67 @@ onMounted(() => {
         <TrendingUp class="w-5 h-5" />
       </div>
       <div>
-        <h2 class="text-lg font-bold text-zinc-100">Historique des Streams & Analytics</h2>
-        <p class="text-xs text-zinc-400">Suivez l'évolution de vos audiences et vos records de viewers.</p>
+        <h2 class="text-lg font-bold text-zinc-100">Analytics de Rétention & Audience</h2>
+        <p class="text-xs text-zinc-400">Mesurez l'engagement réel, le Watch Time cumulé et la fidélité de votre public.</p>
       </div>
+    </div>
+
+    <!-- 4 Cartes KPIs Globales (30 derniers jours) -->
+    <div v-if="summary && summary.totalStreams > 0" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      
+      <!-- KPI 1 : Watch Time -->
+      <div class="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+        <div class="flex items-center justify-between text-zinc-400 text-xs mb-1.5 font-medium">
+          <span>Watch Time Cumulé</span>
+          <Eye class="w-4 h-4 text-purple-400" />
+        </div>
+        <div class="text-xl font-bold text-zinc-100">{{ summary.totalWatchTimeHours }} <span class="text-xs font-normal text-zinc-500">h</span></div>
+        <p class="text-[11px] text-purple-400/80 mt-1">Volume d'attention capté</p>
+      </div>
+
+      <!-- KPI 2 : Taux de Rétention -->
+      <div class="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+        <div class="flex items-center justify-between text-zinc-400 text-xs mb-1.5 font-medium">
+          <span>Rétention Moyenne</span>
+          <Flame class="w-4 h-4 text-emerald-400" />
+        </div>
+        <div class="text-xl font-bold text-emerald-400">{{ summary.overallRetentionRate }}%</div>
+        <p class="text-[11px] text-zinc-500 mt-1">Stabilité Pic vs Moyenne</p>
+      </div>
+
+      <!-- KPI 3 : Moyenne Viewers -->
+      <div class="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+        <div class="flex items-center justify-between text-zinc-400 text-xs mb-1.5 font-medium">
+          <span>Moyenne de Viewers</span>
+          <Users class="w-4 h-4 text-blue-400" />
+        </div>
+        <div class="text-xl font-bold text-zinc-100">{{ summary.overallAverageViewers }}</div>
+        <p class="text-[11px] text-zinc-500 mt-1">Sur {{ summary.totalStreams }} streams</p>
+      </div>
+
+      <!-- KPI 4 : Pic Record -->
+      <div class="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+        <div class="flex items-center justify-between text-zinc-400 text-xs mb-1.5 font-medium">
+          <span>Pic Record</span>
+          <Trophy class="w-4 h-4 text-amber-400" />
+        </div>
+        <div class="text-xl font-bold text-zinc-100">{{ summary.highestPeakViewers }}</div>
+        <p class="text-[11px] text-zinc-500 mt-1">Record sur 30 jours</p>
+      </div>
+
     </div>
 
     <!-- État Chargement -->
     <div v-if="loading" class="py-16 text-center text-zinc-500 text-sm flex items-center justify-center gap-2">
       <RefreshCw class="w-5 h-5 animate-spin text-purple-400" />
-      <span>Chargement de l'historique...</span>
+      <span>Calcul des métriques de rétention...</span>
     </div>
 
     <!-- État Aucun stream -->
     <div v-else-if="history.length === 0" class="py-12 text-center text-zinc-500 text-sm">
       <Layers class="w-10 h-10 mx-auto text-zinc-600 mb-3" />
       <p>Aucun stream enregistré pour le moment.</p>
-      <p class="text-xs text-zinc-600 mt-1">Lancez un live sur Twitch pour commencer l'enregistrement automatique !</p>
+      <p class="text-xs text-zinc-600 mt-1">Lancez un live sur Twitch pour alimenter votre tableau de rétention !</p>
     </div>
 
     <!-- Grille Analytics (2 colonnes) -->
@@ -203,22 +257,34 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Colonne Droite : Graphique d'audience (8 colonnes) -->
+      <!-- Colonne Droite : Graphique d'audience et Badges de Rétention (8 colonnes) -->
       <div class="lg:col-span-8 bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-5 flex flex-col justify-between">
         
-        <!-- En-tête du graphique avec titre de la session sélectionnée -->
-        <div v-if="selectedSession" class="flex justify-between items-start mb-4">
+        <!-- En-tête du graphique avec badges de Rétention -->
+        <div v-if="selectedSession" class="flex flex-wrap justify-between items-start gap-3 mb-4 pb-3 border-b border-zinc-800/60">
           <div>
-            <span class="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Courbe d'audience</span>
+            <span class="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Courbe de Rétention</span>
             <h3 class="text-base font-bold text-zinc-100 mt-0.5">{{ selectedSession.title }}</h3>
           </div>
-          <span class="text-xs bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-lg border border-zinc-700">
-            {{ selectedSession.gameName }}
-          </span>
+
+          <!-- Badges de rétention de la session sélectionnée -->
+          <div v-if="selectedRetention" class="flex items-center gap-2">
+            <span 
+              :class="['text-xs font-bold px-2.5 py-1 rounded-lg border',
+                       selectedRetention.retentionTier.badge === 'captive' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                       selectedRetention.retentionTier.badge === 'stable' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                       'bg-amber-500/10 text-amber-400 border-amber-500/30']"
+            >
+              {{ selectedRetention.retentionTier.label }} ({{ selectedRetention.retentionRate }}%)
+            </span>
+            <span class="text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2.5 py-1 rounded-lg font-medium">
+              {{ selectedRetention.watchTimeHours }} h vues
+            </span>
+          </div>
         </div>
 
         <!-- Canvas Chart.js -->
-        <div class="relative h-[320px] w-full">
+        <div class="relative h-[300px] w-full">
           <canvas ref="chartCanvas"></canvas>
         </div>
 

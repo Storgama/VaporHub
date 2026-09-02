@@ -5,7 +5,8 @@ import {
     getCurrentLiveStatus, 
     getStreamHistory, 
     getStreamMetrics,
-    getAnalyticsSummary
+    getAnalyticsSummary,
+    getAnalyticsBreakdown
 } from '../../src/controllers/twitchController.js';
 import { db } from '../../src/db/initBdd.js';
 import * as twitchService from '../../src/services/twitchService.js';
@@ -124,17 +125,14 @@ describe('🎮 Controller : Twitch (twitchController.js)', () => {
         });
     });
 
-    describe('5. Résumé Global des Analytics (getAnalyticsSummary)', () => {
-        it('doit renvoyer le résumé des 30 derniers jours avec KPIs de rétention', async () => {
-            const mockHistory = [
-                { id: '1', title: 'Live 1' },
-                { id: '2', title: 'Live 2' }
+    describe('5. Résumé Global Haute Performance (getAnalyticsSummary & getAnalyticsBreakdown)', () => {
+        it('getAnalyticsSummary doit utiliser getAllSessionsWithMetrics pour renvoyer le résumé 30 jours', async () => {
+            const mockSessionsWithMetrics = [
+                { session: { id: '1', title: 'Live 1', startedAt: new Date() }, metrics: [{ viewerCount: 50 }] },
+                { session: { id: '2', title: 'Live 2', startedAt: new Date() }, metrics: [{ viewerCount: 80 }] }
             ];
 
-            vi.spyOn(trackerService, 'getSessionsHistory').mockResolvedValueOnce(mockHistory);
-            vi.spyOn(trackerService, 'getSessionMetrics')
-                .mockResolvedValueOnce({ session: mockHistory[0], metrics: [{ viewerCount: 50 }] })
-                .mockResolvedValueOnce({ session: mockHistory[1], metrics: [{ viewerCount: 80 }] });
+            vi.spyOn(trackerService, 'getAllSessionsWithMetrics').mockResolvedValueOnce(mockSessionsWithMetrics);
 
             const mockSummary = {
                 totalStreams: 2,
@@ -147,6 +145,27 @@ describe('🎮 Controller : Twitch (twitchController.js)', () => {
             await getAnalyticsSummary(req, res, next);
 
             expect(res.json).toHaveBeenCalledWith(mockSummary);
+        });
+
+        it('getAnalyticsBreakdown doit renvoyer les statistiques par période et fréquence', async () => {
+            req.query.period = 'yearly';
+            const mockSessionsWithMetrics = [
+                { session: { id: '1', title: 'Live 1', startedAt: new Date() }, metrics: [{ viewerCount: 50 }] }
+            ];
+
+            vi.spyOn(trackerService, 'getAllSessionsWithMetrics').mockResolvedValueOnce(mockSessionsWithMetrics);
+
+            const mockBreakdown = {
+                totalStreams: 1,
+                streamsPerWeek: 3.0,
+                topDays: []
+            };
+
+            vi.spyOn(analyticsService, 'computeFrequencyAndBreakdown').mockReturnValueOnce(mockBreakdown);
+
+            await getAnalyticsBreakdown(req, res, next);
+
+            expect(res.json).toHaveBeenCalledWith(mockBreakdown);
         });
     });
 });

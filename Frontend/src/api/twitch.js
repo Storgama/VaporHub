@@ -39,3 +39,23 @@ export async function getTwitchMetricsApi(sessionId) {
   if (!res.ok) throw new Error(data.error || 'Impossible de charger les métriques du stream');
   return data;
 }
+
+/**
+ * Récupère le résumé global des KPIs de rétention (30 derniers jours)
+ */
+export async function getTwitchSummaryApi() {
+  const res = await httpClient('/twitch/analytics/summary');
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Impossible de charger le résumé analytics');
+  return data;
+}
+
+/**
+ * Récupère les métriques de fréquence et l'évolution temporelle (Hebdo, Mensuel, Annuel, Tout)
+ */
+export async function getTwitchBreakdownApi(period = 'all') {
+  const res = await httpClient(`/twitch/analytics/breakdown?period=${period}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Impossible de charger les statistiques globales');
+  return data;
+}

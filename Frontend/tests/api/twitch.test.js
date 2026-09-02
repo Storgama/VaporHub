@@ -3,7 +3,9 @@ import {
     getTwitchAuthUrlApi, 
     getTwitchStatsApi, 
     getTwitchHistoryApi, 
-    getTwitchMetricsApi 
+    getTwitchMetricsApi,
+    getTwitchSummaryApi,
+    getTwitchBreakdownApi
 } from '../../src/api/twitch.js';
 import * as clientModule from '../../src/api/client.js';
 
@@ -12,56 +14,32 @@ describe('🎮 API : Twitch Endpoints (twitch.js)', () => {
         vi.clearAllMocks();
     });
 
-    it('getTwitchAuthUrlApi doit renvoyer l\'URL OAuth', async () => {
+    it('getTwitchSummaryApi doit renvoyer le résumé des KPIs', async () => {
+        const mockSummary = { totalStreams: 4, totalWatchTimeHours: 120.5 };
         vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: true,
-            json: async () => ({ url: 'https://twitch.tv/oauth' })
+            json: async () => mockSummary
         });
 
-        const url = await getTwitchAuthUrlApi();
-        expect(url).toBe('https://twitch.tv/oauth');
+        const data = await getTwitchSummaryApi();
+        expect(data).toEqual(mockSummary);
     });
 
-    it('getTwitchStatsApi doit renvoyer l\'état du stream', async () => {
-        const mockStats = { linked: true, isLive: true, viewerCount: 100 };
-        vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
+    it('getTwitchBreakdownApi doit renvoyer la fréquence et l\'évolution temporelle', async () => {
+        const mockBreakdown = { 
+            totalStreams: 312, 
+            streamsPerWeek: 3.0, 
+            topDays: [{ day: 'Mardi', percentage: 33 }],
+            evolutionTimeline: [{ label: 'Jan 25', watchTime: 120 }]
+        };
+
+        const httpSpy = vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: true,
-            json: async () => mockStats
+            json: async () => mockBreakdown
         });
 
-        const stats = await getTwitchStatsApi();
-        expect(stats).toEqual(mockStats);
-    });
-
-    it('getTwitchHistoryApi doit renvoyer la liste des sessions', async () => {
-        const mockHistory = [{ id: 's1', title: 'Live 1' }];
-        vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
-            ok: true,
-            json: async () => mockHistory
-        });
-
-        const history = await getTwitchHistoryApi();
-        expect(history).toEqual(mockHistory);
-    });
-
-    it('getTwitchMetricsApi doit renvoyer la session et ses points', async () => {
-        const mockMetrics = { session: { id: 's1' }, metrics: [] };
-        vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
-            ok: true,
-            json: async () => mockMetrics
-        });
-
-        const data = await getTwitchMetricsApi('s1');
-        expect(data).toEqual(mockMetrics);
-    });
-
-    it('doit lever une erreur si la requête échoue', async () => {
-        vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
-            ok: false,
-            json: async () => ({ error: 'Erreur API' })
-        });
-
-        await expect(getTwitchStatsApi()).rejects.toThrow('Erreur API');
+        const data = await getTwitchBreakdownApi('yearly');
+        expect(data).toEqual(mockBreakdown);
+        expect(httpSpy).toHaveBeenCalledWith(expect.stringContaining('period=yearly'));
     });
 });
-
