@@ -4,6 +4,7 @@ import { oauthTokens } from '../db/schemas/index.js';
 import { encrypt } from '../utils/encryption.js';
 import * as twitchService from '../services/twitchService.js';
 import * as trackerService from '../services/streamTrackerService.js';
+import * as analyticsService from '../services/analyticsService.js';
 
 export async function getTwitchAuthUrl(req, res, next) {
     try {
@@ -103,7 +104,27 @@ export async function getStreamMetrics(req, res, next) {
     try {
         const data = await trackerService.getSessionMetrics(req.params.sessionId, req.user.userId);
         if (!data) return res.status(404).json({ error: 'Session introuvable' });
-        res.json(data);
+        
+        const retention = analyticsService.calculateRetentionMetrics(data.session, data.metrics);
+        res.json({ ...data, retention });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getAnalyticsSummary(req, res, next) {
+    try {
+        const history = await trackerService.getSessionsHistory(req.user.userId, 30);
+        const calculatedStreams = [];
+        for (const session of history) {
+            const data = await trackerService.getSessionMetrics(session.id, req.user.userId);
+            if (data) {
+                const metricsResult = analyticsService.calculateRetentionMetrics(data.session, data.metrics);
+                calculatedStreams.push({ ...session, ...metricsResult });
+            }
+        }
+        const summary = analyticsService.computeMonthlySummary(calculatedStreams);
+        res.json(summary);
     } catch (error) {
         next(error);
     }

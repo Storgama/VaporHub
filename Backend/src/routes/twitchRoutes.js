@@ -1,24 +1,14 @@
 import { Router } from 'express';
-import { 
-    getTwitchAuthUrl, 
-    twitchCallback, 
-    getCurrentLiveStatus,
-    getStreamHistory,
-    getStreamMetrics
-} from '../controllers/twitchController.js';
 import { requireAuth } from '../middlewares/authMiddleware.js';
+import * as twitchController from '../controllers/twitchController.js';
 
 const router = Router();
 
-// Connexion OAuth
-router.get('/auth', requireAuth, getTwitchAuthUrl);
-router.get('/callback', twitchCallback);
-
-// Direct
-router.get('/current', requireAuth, getCurrentLiveStatus);
-
-// Historique & Graphiques
-router.get('/history', requireAuth, getStreamHistory);
-router.get('/history/:sessionId', requireAuth, getStreamMetrics);
+router.get('/auth', requireAuth, twitchController.getTwitchAuthUrl);
+router.get('/callback', twitchController.twitchCallback);
+router.get('/current', requireAuth, twitchController.getCurrentLiveStatus);
+router.get('/history', requireAuth, twitchController.getStreamHistory);
+router.get('/history/:sessionId', requireAuth, twitchController.getStreamMetrics);
+router.get('/analytics/summary', requireAuth, twitchController.getAnalyticsSummary);
 
 export default router;
