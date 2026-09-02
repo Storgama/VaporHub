@@ -3,6 +3,7 @@ import { errorHandler } from '../../src/middlewares/errorHandler.js';
 
 describe('🛡️ Middleware : errorHandler (errorHandler.js)', () => {
     it('doit capturer une erreur standard et renvoyer un statut 500', () => {
+        delete process.env.NODE_ENV;
         const error = new Error('Erreur de test interne');
         const req = {};
         const res = {
@@ -11,7 +12,6 @@ describe('🛡️ Middleware : errorHandler (errorHandler.js)', () => {
         };
         const next = vi.fn();
 
-        // Spy sur console.error pour éviter de polluer les logs de test
         vi.spyOn(console, 'error').mockImplementation(() => {});
 
         errorHandler(error, req, res, next);
@@ -48,5 +48,28 @@ describe('🛡️ Middleware : errorHandler (errorHandler.js)', () => {
             }
         });
     });
-});
 
+    it('doit masquer les détails de l\'erreur 500 en environnement de production (Points 79 & 80)', () => {
+        process.env.NODE_ENV = 'production';
+        const error = new Error('Détail secret de la base de données qui ne doit pas fuiter');
+        const req = {};
+        const res = {
+            status: vi.fn().mockReturnThis(),
+            json: vi.fn()
+        };
+        const next = vi.fn();
+
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        errorHandler(error, req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+            error: {
+                message: 'Erreur interne du serveur',
+                status: 500
+            }
+        });
+        delete process.env.NODE_ENV;
+    });
+});

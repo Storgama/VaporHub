@@ -27,7 +27,11 @@ export async function exchangeCodeForTokens(code) {
         redirect_uri: process.env.TWITCH_REDIRECT_URI
     });
 
-    const res = await fetch(TWITCH_TOKEN_URL, { method: 'POST', body: tokenParams });
+    const res = await fetch(TWITCH_TOKEN_URL, { 
+        method: 'POST', 
+        body: tokenParams,
+        signal: AbortSignal.timeout(5000)
+    });
     const data = await res.json();
     if (!res.ok) throw new Error('Échec échange code Twitch');
     return data;
@@ -53,7 +57,11 @@ export async function getValidAccessToken(tokenRecord) {
             refresh_token: decryptedRefreshToken
         });
 
-        const res = await fetch(TWITCH_TOKEN_URL, { method: 'POST', body: refreshParams });
+        const res = await fetch(TWITCH_TOKEN_URL, {
+            method: 'POST', 
+            body: refreshParams,
+            signal: AbortSignal.timeout(5000) 
+        });
         const data = await res.json();
         if (!res.ok) return null;
 
@@ -83,7 +91,8 @@ export async function fetchUserProfile(twitchAccountId, accessToken) {
         headers: {
             'Client-Id': process.env.TWITCH_CLIENT_ID,
             'Authorization': `Bearer ${accessToken}`
-        }
+        },
+        signal: AbortSignal.timeout(5000)
     });
     
     const data = await res.json();
@@ -98,7 +107,8 @@ export async function fetchLiveStream(twitchAccountId, accessToken) {
         headers: {
             'Client-Id': process.env.TWITCH_CLIENT_ID,
             'Authorization': `Bearer ${accessToken}`
-        }
+        },
+        signal: AbortSignal.timeout(5000)
     });
     const data = await res.json();
     return data.data && data.data.length > 0 ? data.data[0] : null;

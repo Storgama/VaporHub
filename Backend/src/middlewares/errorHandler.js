@@ -1,13 +1,11 @@
 export const errorHandler = (err, req, res, next) => {
   console.error('[Error Handler]:', err.stack);
-
-  /**
-   * je te la fait très court ça afficher l'erreur avec tout ce dont on a besoin pour debugger
-   */
-  res.status(err.status || 500).json({
+  const isProd = process.env.NODE_ENV === 'production';
+  const status = err.status || 500;
+  res.status(status).json({
     error: {
-      message: err.message || 'Erreur interne du serveur',
-      status: err.status || 500
+      message: (isProd && status === 500) ? 'Erreur interne du serveur' : (err.message || 'Une erreur est survenue'),
+      status
     }
   });
 };

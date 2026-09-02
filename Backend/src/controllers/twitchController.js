@@ -15,8 +15,10 @@ export async function getTwitchAuthUrl(req, res, next) {
 
 export async function twitchCallback(req, res, next) {
     try {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
         const { code, state: userId, error } = req.query;
-        if (error || !code) return res.redirect('http://localhost:5173/?error=twitch_denied');
+        if (error || !code) return res.redirect(`${frontendUrl}/?error=twitch_denied`);
 
         const tokenData = await twitchService.exchangeCodeForTokens(code);
         const twitchUser = await twitchService.fetchUserProfile('', tokenData.access_token);
@@ -40,7 +42,7 @@ export async function twitchCallback(req, res, next) {
             await db.insert(oauthTokens).values({ userId, provider: 'twitch', ...payload });
         }
 
-        res.redirect('http://localhost:5173/?twitch_linked=true');
+        res.redirect(`${frontendUrl}/?twitch_linked=true`);
     } catch (error) {
         next(error);
     }
