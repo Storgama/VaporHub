@@ -1,63 +1,77 @@
-# 🗺️ VaporHub — Roadmap & Suivi du Projet
+# 🗺️ VaporHub — Roadmap & Centre de Contrôle Créateur
 
-Ce document sert de référence pour le suivi des versions, des fonctionnalités en cours et des chantiers futurs sur **VaporHub**.
+Ce document sert de référence officielle pour le suivi des versions, des fonctionnalités et des chantiers de **VaporHub**, le centre de contrôle tout-en-un pour le streaming et la création de contenu.
 
 ---
 
 ## 📌 Convention de Versionnage (SemVer)
 
 * **`v1.0.0` (Version Majeure `X`) :** Première release officielle stable pour la **Mise en Production**.
-* **`v0.X.0` (Versions Mineures `X.Y`) :** Versions d'évolutions fonctionnelles majeures durant le développement.
-* **`v0.X.X` (Patchs `X.Y.Z`) :** Correctifs de bugs et ajustements de conception.
+* **`v0.X.0` (Versions Mineures `X.Y`) :** Évolutions fonctionnelles majeures durant le développement.
+* **`v0.X.X` (Patchs `X.Y.Z`) :** Correctifs de bugs et ajustements de sécurité/conception.
 
 ---
 
-## 🎯 Jalons de Développement (Roadmap)
+## 🎯 Jalons de Développement (Roadmap Active)
 
-### 📊 Jalon `v0.4.0` : Analytics de Rétention, Fidélisation & Planning *(Prochain Sprint)*
-- [ ] **Score de Rétention (Moyenne vs Pic) :** Calcul et affichage du ratio de rétention d'audience pour chaque stream.
-- [ ] **Watch Time Cumulé (Heures-Vues) :** Mesure exacte du volume d'heures d'attention humaine captée par mois.
-- [ ] **Cartes KPIs Globales de Rétention :** Résumé visuel en haut du Dashboard (Heures-Vues, Taux de Rétention, Moyenne de spectateurs, Durée moyenne).
-- [ ] **Analyse de Dynamique sur le Graphique :** Visualisation des gains et pertes d'audience au cours du live.
-- [ ] **Comparateur de Lives :** Comparaison de deux sessions sur un même graphique pour identifier les formats les plus captivants.
-- [ ] **Module Planning de Stream :** Calendrier interactif pour programmer ses prochains rendez-vous de stream.
+### ️ Jalon `v0.4.0` : Le Cockpit Live Twitch & Sécurité Renforcée *(Sprint Actuel)*
+> **Objectif :** Supprimer les onglets inutiles en live, éliminer la friction mentale du streamer et sécuriser le socle analytique.
 
----
-
-### 🤖 Jalon `v0.5.0` : Outils Créateur & Bot Twitch
-- [ ] **Connexion du Bot au Chat :** Activation et jonction du Bot VaporHub sur le chat du streamer en 1 clic.
-- [ ] **Spectateurs Uniques & Temps Moyen par Viewer :** Suivi nominatif des présences dans le chat pour calculer le temps moyen passé par viewer.
-- [ ] **Gestionnaire de Commandes personnalisées :** Interface de création/modification de commandes de chat (ex: `!discord`, `!planning`, `!uptime`, `!socials`).
-- [ ] **Messages Programmés (Timers) :** Envoi automatique de messages périodiques dans le chat (rappels réseaux, liens Discord).
-- [ ] **Journal des événements en direct :** Suivi des follows, subs et raids en temps réel sur le Dashboard.
-
----
-
-### 💬 Jalon `v0.6.0` : Bot Discord & Alertes Communauté (`Discord/`)
-- [ ] **Initialisation du projet Bot :** Setup `discord.js` dans le dossier `Discord/`.
-- [ ] **Notification de Live automatique :** Alerte automatique avec mention `@everyone` et embed riche sur le serveur Discord du streamer dès qu'il lance son live.
-- [ ] **Commandes Slash Discord (`/live`, `/planning`, `/stats`) :** Permettre à la communauté de consulter l'état de la chaîne et le planning directement sur Discord.
+- [x] **Analytics de Rétention & Watch Time :** Calcul automatique de la fidélité, temps de visionnage et progression sur 2 ans d'historique.
+- [x] **Page Statistiques Haute Performance :** Élimination du problème $N+1$ (requêtes SQL groupées sub-50ms) et navigation dynamique par période.
+- [x] **Seeding Réaliste sur 2 ans :** 315 streams simulés avec croissance progressive pour les tests de charge.
+- [ ] **Le Radar Publicitaire Twitch (`Ad Schedule API`) :**
+  - Compte à rebours avant la prochaine coupure pub obligatoire.
+  - Indicateur de temps garanti sans pré-roll (*Preroll Free Time*).
+  - Déclencheur 1-clic pour lancer une pause pub de 90s directement depuis le Dashboard.
+- [ ] **Alerte Live Discord "Natia" (Webhook Découplé) :**
+  - Configuration du Webhook Discord dans les paramètres.
+  - Déclencheur d'annonce de live avec le ton piquant et sarcastique de Natia.
+- [ ] **Blindage de Sécurité & Zero-Trust :**
+  - Chiffrement fort AES-256-GCM systématique sur tous les tokens OAuth tiers.
+  - Validation stricte Zod et Rate Limiting actif (IETF Draft-7).
 
 ---
 
-### 🔴 Jalon `v0.7.0` : Multi-Plateforme (Intégration YouTube)
-- [ ] **OAuth2 Google / YouTube :** Bouton *"Lier ma chaîne YouTube"*.
-- [ ] **Tracker YouTube Live & Abonnés :** Afficher le nombre d'abonnés, les dernières vidéos et le statut des lives YouTube.
-- [ ] **Vue Agrégée Multi-Stream :** Vue simultanée Twitch + YouTube sur un seul tableau de bord.
+### 🎮 Jalon `v0.5.0` : Le Journal du Scientifique & Tracker 100%
+> **Objectif :** Suivre la complétion des jeux étudiés en live et synchroniser l'état d'avancement de la commu.
+
+- [ ] **Module "Game Study Tracker" (BDD & UI) :**
+  - Table `game_studies` (Jeu, statut : *En cours / Validé 100% / Abandonné*, pourcentage de complétion, temps passé, verdict du Scientifique).
+  - Interface visuelle sur VaporHub pour mettre à jour la jauge de progression en 2 clics.
+- [ ] **Synchronisation Discord du Labo :**
+  - Envoi / mise à jour automatique d'un embed Discord récapitulatif avec l'état actuel des recherches du Scientifique.
+- [ ] **Flux d'Événements Live en Direct (Twitch EventSub) :**
+  - Colonne latérale sur le Dashboard avec les follows, subs et raids en direct (sans dépendre d'IRC).
 
 ---
 
-### 🚀 Jalon `v1.0.0` : Première Release Officielle en Production
-- [ ] Recette globale & Tests de bout en bout.
-- [ ] Déploiement Cloud (PostgreSQL Supabase Prod, Serveur API, Hébergement Frontend).
-- [ ] Nom de domaine personnalisé, certificats SSL et configuration DNS.
-- [ ] Documentation utilisateur finale.
+###  Jalon `v0.6.0` : Multi-Plateforme (YouTube Live & Annonces Contenu)
+> **Objectif :** Ouvrir le cockpit à YouTube et gérer la communication cross-plateforme.
+
+- [ ] **Intégration YouTube Live (Data API v3) :**
+  - Connexion OAuth2 de la chaîne YouTube (architecture multi-chaîne extensible).
+  - Radar de live YouTube avec détection synchronisée (anti-dépassement de quota des 10 000 unités/jour).
+  - Jauge d'**Audience Multistream Unifiée** (Viewers Twitch + Viewers YouTube en direct sur un seul écran).
+- [ ] **Diffuseur d'Annonces Vidéos :**
+  - Module d'annonce automatique lors de la sortie d'une nouvelle vidéo YouTube (Webhook Discord + X/Twitter).
 
 ---
 
-### 📱 Post-v1.0.0 (Évolutions Futures)
-- [ ] **Application Mobile (`Mobile/`) :** Application smartphone pour suivre son live et ses métriques en mobilité.
-- [ ] **Nouvelles Plateformes :** Intégration de Kick et TikTok Live.
+### 🤖 Jalon `v0.7.0` : Le Cerveau de Natia (IA Découplée)
+> **Objectif :** Donner corps et voix à l'IA sarcastique du lore.
+
+- [ ] **Service Autonome `Natia Engine` :**
+  - Moteur de personnalité IA connecté aux événements de VaporHub via un bus découplé.
+  - Roasts et débriefs sarcastiques générés après chaque stream.
+  - Réactions interactives sur Discord avec la communauté.
+
+---
+
+### 🚀 Jalon `v1.0.0` : Déploiement Cloud & Zero-Trust Production
+- [ ] Audit de sécurité complet (Pentest local, revue de surface d'attaque OWASP).
+- [ ] Déploiement en production (Supabase Prod, API Cloud, SSL, nom de domaine).
+- [ ] Tests de charge et vérification de la tolérance aux pannes.
 
 ---
 

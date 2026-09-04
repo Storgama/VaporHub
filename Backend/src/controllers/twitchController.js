@@ -118,7 +118,7 @@ export async function getStreamMetrics(req, res, next) {
 export async function getAnalyticsSummary(req, res, next) {
     try {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        // ⚡ 1 seule requête groupée pour toutes les sessions des 30 derniers jours
+        // seule requête groupée pour toutes les sessions des 30 derniers jours
         const sessionsWithMetrics = await trackerService.getAllSessionsWithMetrics(req.user.userId, 50, thirtyDaysAgo);
         // Filtrage et calcul de la rétention en mémoire (ultra-rapide)
         const calculatedStreams = sessionsWithMetrics

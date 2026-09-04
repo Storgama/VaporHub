@@ -115,7 +115,7 @@ export async function getAllSessionsWithMetrics(userId, limit = 500, sinceDate =
     // 2. Récupère toutes les métriques de ces sessions en 1 seule requête globale
     const allMetrics = await db.select().from(streamMetrics)
         .where(inArray(streamMetrics.sessionId, sessionIds));
-    // 3. Regroupement ultra-rapide en mémoire (en 2 millisecondes)
+    // 3. Regroupement ultra-rapide en mémoire
     const metricsBySession = new Map();
     allMetrics.forEach(m => {
         if (!metricsBySession.has(m.sessionId)) {

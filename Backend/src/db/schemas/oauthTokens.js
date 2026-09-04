@@ -16,6 +16,11 @@ export const oauthTokens = pgTable(
         // L'ID unique de l'utilisateur CÔTÉ TWITCH (ex: "12345678")
         providerAccountId: text('provider_account_id').notNull(),
 
+        // Nom de la chaîne pour l'affichage
+        accountName: text('account_name'),
+        // Avatar de la chaîne
+        accountAvatar: text('account_avatar'),
+
         // Tokens d'accès OAuth
         accessToken: text('access_token').notNull(),
         refreshToken: text('refresh_token'),
@@ -26,6 +31,6 @@ export const oauthTokens = pgTable(
         updatedAt: timestamp('updated_at').defaultNow().notNull(),
     },
     (table) => [
-        uniqueIndex('user_provider_unique_idx').on(table.userId, table.provider),
+        uniqueIndex('user_provider_account_unique_idx').on(table.userId, table.provider, table.providerAccountId)
     ]
 )
