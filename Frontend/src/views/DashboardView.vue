@@ -6,6 +6,5 @@
 <template>
   <section class="dashboard">
     <TwitchCard />
-    <TwitchHistory />
   </section>
 </template>

@@ -1,28 +1,78 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { getTwitchStatsApi, getTwitchAuthUrlApi } from '../api/twitch.js';
-import { Radio, Users, Gamepad2, FileText, RefreshCw, AlertCircle, ExternalLink } from 'lucide-vue-next';
+import { getTwitchStatsApi, getTwitchAuthUrlApi, getTwitchAdScheduleApi } from '../api/twitch.js';
+import { 
+  Radio, 
+  Users, 
+  Gamepad2, 
+  FileText, 
+  RefreshCw, 
+  AlertCircle, 
+  ExternalLink, 
+  Timer, 
+  Clock, 
+  ShieldCheck,
+  FlaskConical 
+} from 'lucide-vue-next';
 
 const stats = ref(null);
+const adSchedule = ref(null);
 const loading = ref(true);
 const error = ref('');
 const isRefreshing = ref(false);
+const isMockMode = ref(false); // 🧪 État du bouton Mock
 let pollInterval = null;
+
+// Formater les secondes en minutes / secondes
+function formatSeconds(seconds) {
+  if (!seconds || seconds <= 0) return '0s';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}m ${secs > 0 ? secs + 's' : ''}` : `${secs}s`;
+}
+
+// Calculer le compte à rebours jusqu'à la prochaine pub
+function formatCountdown(timestampUnix) {
+  if (!timestampUnix) return 'Inconnu';
+  const nowSec = Math.floor(Date.now() / 1000);
+  const diffSec = timestampUnix - nowSec;
+  if (diffSec <= 0) return 'Imminente';
+  return formatSeconds(diffSec);
+}
 
 async function loadStats(isSilent = false) {
   if (!isSilent) loading.value = true;
   else isRefreshing.value = true;
   
   error.value = '';
+  const query = isMockMode.value ? '?mock=true' : '';
 
   try {
-    stats.value = await getTwitchStatsApi();
+    stats.value = await getTwitchStatsApi(query);
+    
+    // Si le streamer est en live, on interroge le Radar Publicitaire
+    if (stats.value && stats.value.isLive) {
+      try {
+        const adsData = await getTwitchAdScheduleApi(query);
+        adSchedule.value = adsData.hasAds ? adsData.adSchedule : null;
+      } catch {
+        adSchedule.value = null;
+      }
+    } else {
+      adSchedule.value = null;
+    }
   } catch (err) {
     if (!isSilent) error.value = err.message;
   } finally {
     loading.value = false;
     isRefreshing.value = false;
   }
+}
+
+// Basculer facilement entre le Live Réel et le Mock
+function toggleMock() {
+  isMockMode.value = !isMockMode.value;
+  loadStats(false);
 }
 
 async function handleLinkTwitch() {
@@ -77,12 +127,27 @@ onUnmounted(() => {
 <template>
   <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative">
     
-    <!-- En-tête sobre de la carte -->
-    <div class="flex items-center gap-2.5 mb-6 pb-4 border-b border-zinc-800/80">
-      <div class="p-2 bg-purple-600/10 text-purple-400 rounded-xl border border-purple-500/20">
-        <Radio class="w-5 h-5" />
+    <!-- En-tête avec bouton Mock Dev Switch -->
+    <div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800/80">
+      <div class="flex items-center gap-2.5">
+        <div class="p-2 bg-purple-600/10 text-purple-400 rounded-xl border border-purple-500/20">
+          <Radio class="w-5 h-5" />
+        </div>
+        <h2 class="text-lg font-bold text-zinc-100">Twitch Live Tracker</h2>
       </div>
-      <h2 class="text-lg font-bold text-zinc-100">Twitch Live Tracker</h2>
+
+      <!-- Bouton ON / OFF pour simuler un live -->
+      <button 
+        @click="toggleMock"
+        :class="['text-xs px-3 py-1.5 rounded-lg border transition font-semibold flex items-center gap-1.5 cursor-pointer',
+                 isMockMode 
+                   ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-950/40' 
+                   : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/60 hover:text-zinc-200 hover:bg-zinc-800']"
+        title="Basculer entre l'état réel et la simulation de live en dev"
+      >
+        <FlaskConical class="w-3.5 h-3.5 text-amber-400" />
+        <span>{{ isMockMode ? 'Simulateur : ACTIF' : 'Simuler un Live' }}</span>
+      </button>
     </div>
 
     <!-- État 1 : Chargement initial -->
@@ -126,7 +191,6 @@ onUnmounted(() => {
           <div v-else class="w-16 h-16 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 border border-purple-500/30">
             <Radio class="w-8 h-8" />
           </div>
-          <!-- Point d'état sur l'avatar -->
           <span 
             :class="['absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-zinc-900', 
                      stats.isLive ? 'bg-rose-500' : 'bg-zinc-500']"
@@ -146,7 +210,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Détails si le streamer est EN LIVE -->
-      <div v-if="stats.isLive" class="bg-zinc-950/70 border border-zinc-800/90 rounded-xl p-5 space-y-3">
+      <div v-if="stats.isLive" class="bg-zinc-950/70 border border-zinc-800/90 rounded-xl p-5 space-y-4">
         
         <!-- Nombre de spectateurs -->
         <div class="flex items-center gap-2 text-emerald-400 font-extrabold text-lg">
@@ -168,15 +232,38 @@ onUnmounted(() => {
           <span class="italic text-zinc-300">{{ stats.title }}</span>
         </div>
 
-        <!-- Miniature du live -->
-        <div v-if="stats.thumbnailUrl" class="mt-4 pt-2">
-          <img 
-            :src="stats.thumbnailUrl" 
-            alt="Aperçu du stream" 
-            class="rounded-lg border border-zinc-800 max-w-sm w-full shadow-md" 
-          />
-        </div>
+        <!-- Radar Publicitaire Twitch (Affiché si disponible) -->
+        <div v-if="adSchedule" class="bg-zinc-900/90 border border-purple-500/30 rounded-xl p-4 shadow-inner space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+            <div class="flex items-center gap-2">
+              <Timer class="w-4 h-4 text-purple-400" />
+              <span class="text-xs font-bold text-zinc-100 uppercase tracking-wider">Radar Publicitaire</span>
+            </div>
+            <span class="text-[11px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-medium">
+              Coupure : {{ adSchedule.duration }}s
+            </span>
+          </div>
 
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <!-- Prochaine coupure -->
+            <div class="bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800">
+              <span class="text-zinc-500 text-[11px] block">Prochaine coupure</span>
+              <span class="text-amber-400 font-extrabold text-sm flex items-center gap-1 mt-1">
+                <Clock class="w-3.5 h-3.5" />
+                {{ formatCountdown(adSchedule.next_ad_at) }}
+              </span>
+            </div>
+
+            <!-- Temps sans pré-roll -->
+            <div class="bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800">
+              <span class="text-zinc-500 text-[11px] block">Sans pré-roll</span>
+              <span class="text-emerald-400 font-extrabold text-sm flex items-center gap-1 mt-1">
+                <ShieldCheck class="w-3.5 h-3.5" />
+                {{ formatSeconds(adSchedule.preroll_free_time) }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Barre d'action inférieure -->

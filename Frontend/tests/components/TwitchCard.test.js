@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 import TwitchCard from '../../src/components/TwitchCard.vue';
 import * as twitchApi from '../../src/api/twitch.js';
 
-describe('🧩 Composant : TwitchCard.vue', () => {
+describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -28,7 +28,8 @@ describe('🧩 Composant : TwitchCard.vue', () => {
 
         expect(wrapper.text()).toContain('Twitch Live Tracker');
         
-        const linkBtn = wrapper.find('button');
+        const linkBtn = wrapper.findAll('button').find(b => b.text().includes('Lier mon compte Twitch'));
+        expect(linkBtn).toBeDefined();
         await linkBtn.trigger('click');
 
         expect(authUrlSpy).toHaveBeenCalledTimes(1);
@@ -51,7 +52,7 @@ describe('🧩 Composant : TwitchCard.vue', () => {
         expect(wrapper.text()).toContain('HORS LIGNE');
     });
 
-    it('doit afficher les informations complètes et le badge EN DIRECT quand le streamer est en live', async () => {
+    it('doit afficher les informations complètes et le Radar Publicitaire quand le streamer est en live', async () => {
         vi.spyOn(twitchApi, 'getTwitchStatsApi').mockResolvedValueOnce({
             linked: true,
             channel: 'StreamerEnLive',
@@ -63,15 +64,31 @@ describe('🧩 Composant : TwitchCard.vue', () => {
             thumbnailUrl: 'https://thumb_320x180.jpg'
         });
 
+        const futureTime = Math.floor(Date.now() / 1000) + 600;
+        vi.spyOn(twitchApi, 'getTwitchAdScheduleApi').mockResolvedValueOnce({
+            linked: true,
+            hasAds: true,
+            adSchedule: {
+                next_ad_at: futureTime,
+                duration: 90,
+                preroll_free_time: 1200
+            }
+        });
+
         const wrapper = mount(TwitchCard);
         await wrapper.vm.$nextTick();
-        await new Promise(r => setTimeout(r, 10));
+        await new Promise(r => setTimeout(r, 30));
 
+        // Infos live
         expect(wrapper.text()).toContain('StreamerEnLive');
         expect(wrapper.text()).toContain('EN DIRECT');
         expect(wrapper.text()).toContain('154 spectateurs en direct');
         expect(wrapper.text()).toContain('Valorant');
-        expect(wrapper.text()).toContain('Tournoi Ranked !');
+
+        // Radar Publicitaire
+        expect(wrapper.text()).toContain('Radar Publicitaire');
+        expect(wrapper.text()).toContain('Prochaine coupure');
+        expect(wrapper.text()).toContain('Sans pré-roll');
     });
 
     it('doit forcer l\'actualisation quand on clique sur le bouton Actualiser', async () => {
@@ -86,8 +103,8 @@ describe('🧩 Composant : TwitchCard.vue', () => {
         await wrapper.vm.$nextTick();
         await new Promise(r => setTimeout(r, 10));
 
-        const refreshBtn = wrapper.find('.flex.justify-between button');
-        if (refreshBtn.exists()) {
+        const refreshBtn = wrapper.findAll('button').find(b => b.text().includes('Actualiser'));
+        if (refreshBtn) {
             await refreshBtn.trigger('click');
             expect(statsSpy).toHaveBeenCalled();
         }

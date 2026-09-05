@@ -11,7 +11,7 @@ const TWITCH_HELIX_URL = 'https://api.twitch.tv/helix';
  * Génère l'URL d'autorisation OAuth Twitch
  */
 export function buildAuthUrl(userId) {
-    const scopes = ['user:read:email', 'channel:read:stream_key'].join(' ');
+    const scopes = ['user:read:email', 'channel:read:stream_key', 'channel:read:ads'].join(' ');
     return `${TWITCH_AUTH_URL}?client_id=${process.env.TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.TWITCH_REDIRECT_URI)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${userId}`;
 }
 
@@ -112,4 +112,24 @@ export async function fetchLiveStream(twitchAccountId, accessToken) {
     });
     const data = await res.json();
     return data.data && data.data.length > 0 ? data.data[0] : null;
+}
+
+/**
+ * Récupère le calendrier publicitaire officiel (prochaine pub, durée, temps sans pré-roll)
+ */
+export async function fetchAdSchedule(broadcasterId, accessToken) {
+    try {
+        const res = await fetch(`${TWITCH_HELIX_URL}/channels/ads?broadcaster_id=${broadcasterId}`, {
+            headers: {
+                'Client-Id': process.env.TWITCH_CLIENT_ID,
+                'Authorization': `Bearer ${accessToken}`
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.data && data.data[0] ? data.data[0] : null;
+    } catch {
+        return null;
+    }
 }

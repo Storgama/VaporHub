@@ -1,22 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import DashboardView from '../../src/views/DashboardView.vue';
+import TwitchCard from '../../src/components/TwitchCard.vue';
+import TwitchHistory from '../../src/components/TwitchHistory.vue';
 
-// Mock des composants enfants pour tester le montage propre du Dashboard
-vi.mock('../../src/components/TwitchCard.vue', () => ({
-    default: { template: '<div data-testid="mock-twitch-card">TwitchCard</div>' }
-}));
-
-vi.mock('../../src/components/TwitchHistory.vue', () => ({
-    default: { template: '<div data-testid="mock-twitch-history">TwitchHistory</div>' }
-}));
-
-describe('🧩 Vue : DashboardView.vue', () => {
-    it('doit rendre la carte Twitch et l\'historique', () => {
+describe('🧩 Vue : DashboardView.vue (Cockpit Live Épuré)', () => {
+    it('doit rendre uniquement la carte Twitch Live Cockpit sans encombrer avec l\'historique', () => {
         const wrapper = mount(DashboardView);
 
-        expect(wrapper.find('[data-testid="mock-twitch-card"]').exists()).toBe(true);
-        expect(wrapper.find('[data-testid="mock-twitch-history"]').exists()).toBe(true);
+        // 1. Doit contenir TwitchCard
+        expect(wrapper.findComponent(TwitchCard).exists()).toBe(true);
+
+        // 2. Ne doit STRICTEMENT PAS contenir TwitchHistory
+        expect(wrapper.findComponent(TwitchHistory).exists()).toBe(false);
     });
 });
-

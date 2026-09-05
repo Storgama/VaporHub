@@ -5,7 +5,8 @@ import {
     getTwitchHistoryApi, 
     getTwitchMetricsApi,
     getTwitchSummaryApi,
-    getTwitchBreakdownApi
+    getTwitchBreakdownApi,
+    getTwitchAdScheduleApi
 } from '../../src/api/twitch.js';
 import * as clientModule from '../../src/api/client.js';
 
@@ -41,5 +42,26 @@ describe('🎮 API : Twitch Endpoints (twitch.js)', () => {
         const data = await getTwitchBreakdownApi('yearly');
         expect(data).toEqual(mockBreakdown);
         expect(httpSpy).toHaveBeenCalledWith(expect.stringContaining('period=yearly'));
+    });
+
+    it('getTwitchAdScheduleApi doit renvoyer le radar publicitaire', async () => {
+        const mockAds = {
+            linked: true,
+            hasAds: true,
+            adSchedule: {
+                next_ad_at: 1698774600,
+                duration: 90,
+                preroll_free_time: 1200
+            }
+        };
+
+        const httpSpy = vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
+            ok: true,
+            json: async () => mockAds
+        });
+
+        const data = await getTwitchAdScheduleApi();
+        expect(data).toEqual(mockAds);
+        expect(httpSpy).toHaveBeenCalledWith('/twitch/ads');
     });
 });
