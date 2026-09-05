@@ -264,16 +264,6 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-
-        <!-- Miniature du live -->
-        <div v-if="stats.thumbnailUrl" class="mt-4 pt-2">
-          <img 
-            :src="stats.thumbnailUrl" 
-            alt="Aperçu du stream" 
-            class="rounded-lg border border-zinc-800 max-w-sm w-full shadow-md" 
-          />
-        </div>
-
       </div>
 
       <!-- Barre d'action inférieure -->
