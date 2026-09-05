@@ -13,8 +13,8 @@ export async function getTwitchAuthUrlApi() {
 /**
  * Récupère l'état du live / chaîne
  */
-export async function getTwitchStatsApi() {
-  const res = await httpClient('/twitch/current');
+export async function getTwitchStatsApi(query = '') {
+  const res = await httpClient(`/twitch/current${query}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Impossible de charger les statistiques Twitch');
   return data;
@@ -57,5 +57,15 @@ export async function getTwitchBreakdownApi(period = 'all') {
   const res = await httpClient(`/twitch/analytics/breakdown?period=${period}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Impossible de charger les statistiques globales');
+  return data;
+}
+
+/**
+ * Récupère le radar publicitaire officiel (compte à rebours pub, pré-rolls)
+ */
+export async function getTwitchAdScheduleApi(query = '') {
+  const res = await httpClient(`/twitch/ads${query}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Impossible de charger le radar publicitaire');
   return data;
 }

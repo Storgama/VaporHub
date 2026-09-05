@@ -6,7 +6,8 @@ import {
     getStreamHistory, 
     getStreamMetrics,
     getAnalyticsSummary,
-    getAnalyticsBreakdown
+    getAnalyticsBreakdown,
+    getTwitchAdSchedule
 } from '../../src/controllers/twitchController.js';
 import { db } from '../../src/db/initBdd.js';
 import * as twitchService from '../../src/services/twitchService.js';
@@ -166,6 +167,63 @@ describe('🎮 Controller : Twitch (twitchController.js)', () => {
             await getAnalyticsBreakdown(req, res, next);
 
             expect(res.json).toHaveBeenCalledWith(mockBreakdown);
+        });
+    });
+
+    describe('6. Radar Publicitaire Twitch (getTwitchAdSchedule)', () => {
+        it('doit renvoyer le calendrier publicitaire si le token est valide', async () => {
+            const mockTokenRecord = {
+                providerAccountId: '123456',
+                accessToken: 'encrypted_token'
+            };
+
+            db.select.mockReturnValueOnce({
+                from: vi.fn().mockReturnValueOnce({
+                    where: vi.fn().mockResolvedValueOnce([mockTokenRecord])
+                })
+            });
+
+            vi.spyOn(twitchService, 'getValidAccessToken').mockResolvedValueOnce('valid_access_token');
+
+            const mockAdSchedule = {
+                next_ad_at: 1698774600,
+                duration: 90,
+                preroll_free_time: 1200
+            };
+
+            vi.spyOn(twitchService, 'fetchAdSchedule').mockResolvedValueOnce(mockAdSchedule);
+
+            await getTwitchAdSchedule(req, res, next);
+
+            expect(res.json).toHaveBeenCalledWith({
+                linked: true,
+                hasAds: true,
+                adSchedule: mockAdSchedule
+            });
+        });
+
+        it('doit renvoyer hasAds: false si le streamer n\'est pas affilié/partenaire', async () => {
+            const mockTokenRecord = {
+                providerAccountId: '123456',
+                accessToken: 'encrypted_token'
+            };
+
+            db.select.mockReturnValueOnce({
+                from: vi.fn().mockReturnValueOnce({
+                    where: vi.fn().mockResolvedValueOnce([mockTokenRecord])
+                })
+            });
+
+            vi.spyOn(twitchService, 'getValidAccessToken').mockResolvedValueOnce('valid_access_token');
+            vi.spyOn(twitchService, 'fetchAdSchedule').mockResolvedValueOnce(null);
+
+            await getTwitchAdSchedule(req, res, next);
+
+            expect(res.json).toHaveBeenCalledWith({
+                linked: true,
+                hasAds: false,
+                message: 'Aucune publicité programmée ou chaîne non affiliée'
+            });
         });
     });
 });

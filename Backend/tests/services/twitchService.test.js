@@ -4,7 +4,8 @@ import {
     fetchUserProfile, 
     fetchLiveStream, 
     exchangeCodeForTokens, 
-    getValidAccessToken 
+    getValidAccessToken,
+    fetchAdSchedule
 } from '../../src/services/twitchService.js';
 import { encrypt } from '../../src/utils/encryption.js';
 import { db } from '../../src/db/initBdd.js';
@@ -28,13 +29,14 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         vi.restoreAllMocks();
     });
 
-    it('doit construire l\'URL d\'autorisation OAuth Twitch avec le state userId', () => {
+    it('doit construire l\'URL d\'autorisation OAuth Twitch avec le state userId et les scopes ads', () => {
         const url = buildAuthUrl('user_uuid_12345');
 
         expect(url).toContain('https://id.twitch.tv/oauth2/authorize');
         expect(url).toContain('client_id=test_twitch_client_id');
         expect(url).toContain('state=user_uuid_12345');
         expect(url).toContain('user%3Aread%3Aemail');
+        expect(url).toContain('channel%3Aread%3Aads');
     });
 
     it('doit récupérer le profil utilisateur Twitch avec succès', async () => {
@@ -81,6 +83,48 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
 
         const stream = await fetchLiveStream('123456', 'fake_access_token');
         expect(stream).toBeNull();
+    });
+
+    describe('📡 Radar Publicitaire Twitch (fetchAdSchedule)', () => {
+        it('doit récupérer le calendrier publicitaire avec compte à rebours et pré-roll', async () => {
+            const mockAdData = {
+                snooze_count: 1,
+                snooze_refresh_at: 1698774000,
+                next_ad_at: 1698774600,
+                duration: 90,
+                preroll_free_time: 1200,
+                last_ad_at: 1698771000
+            };
+
+            vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ data: [mockAdData] })
+            });
+
+            const adSchedule = await fetchAdSchedule('123456', 'fake_access_token');
+
+            expect(adSchedule).toEqual(mockAdData);
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/channels/ads?broadcaster_id=123456'),
+                expect.objectContaining({
+                    headers: {
+                        'Client-Id': 'test_twitch_client_id',
+                        'Authorization': 'Bearer fake_access_token'
+                    }
+                })
+            );
+        });
+
+        it('doit retourner null si le streamer n\'est pas affilié/partenaire ou en cas d\'erreur', async () => {
+            vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+                ok: false,
+                status: 403,
+                json: async () => ({ message: 'Not an affiliate or partner' })
+            });
+
+            const adSchedule = await fetchAdSchedule('123456', 'fake_access_token');
+            expect(adSchedule).toBeNull();
+        });
     });
 
     it('doit échanger un code d\'autorisation contre des tokens', async () => {

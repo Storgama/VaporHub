@@ -51,6 +51,23 @@ export async function twitchCallback(req, res, next) {
 
 export async function getCurrentLiveStatus(req, res, next) {
     try {
+
+        // 🧪 MODE MOCK DEV : Permet de simuler un live avec ?mock=true
+        if (process.env.NODE_ENV !== 'PROD' && req.query.mock === 'true') {
+            return res.json({
+                linked: true,
+                channel: 'Pominus (Mock Live)',
+                avatar: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=128&h=128&fit=crop&crop=faces',
+                isLive: true,
+                title: '🧪 [LABO] Test du Radar Publicitaire & Cockpit VaporHub !',
+                game: 'Valorant',
+                viewerCount: 84,
+                startedAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+                thumbnailUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=320&h=180&fit=crop'
+            });
+        }
+
+
         const [tokenRecord] = await db.select().from(oauthTokens).where(
             and(eq(oauthTokens.userId, req.user.userId), eq(oauthTokens.provider, 'twitch'))
         );
@@ -153,6 +170,50 @@ export async function getAnalyticsBreakdown(req, res, next) {
         });
         const breakdown = analyticsService.computeFrequencyAndBreakdown(calculatedStreams, period || 'all');
         res.json(breakdown);
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * Radar Publicitaire : Renvoie les timers de pub et le temps garanti sans pré-roll
+ */
+export async function getTwitchAdSchedule(req, res, next) {
+    try {
+
+         // 🧪 MODE MOCK DEV : Faux compte à rebours de pub
+        if (process.env.NODE_ENV !== 'production' && req.query.mock === 'true') {
+            return res.json({
+                linked: true,
+                hasAds: true,
+                adSchedule: {
+                    next_ad_at: Math.floor(Date.now() / 1000) + 740, // Prochaine pub dans 12 min 20s
+                    duration: 90, // Coupure de 90s
+                    preroll_free_time: 1100, // 18 min sans pré-roll pour les nouveaux viewers
+                    last_ad_at: Math.floor(Date.now() / 1000) - 1800
+                }
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, req.user.userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.json({ linked: false, message: 'Aucun compte Twitch lié' });
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.json({ linked: false, message: 'Connexion expirée' });
+        const adSchedule = await twitchService.fetchAdSchedule(tokenRecord.providerAccountId, accessToken);
+        if (adSchedule) {
+            return res.json({
+                linked: true,
+                hasAds: true,
+                adSchedule
+            });
+        }
+        res.json({
+            linked: true,
+            hasAds: false,
+            message: 'Aucune publicité programmée ou chaîne non affiliée'
+        });
     } catch (error) {
         next(error);
     }

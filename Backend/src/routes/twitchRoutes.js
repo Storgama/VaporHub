@@ -11,5 +11,6 @@ router.get('/history', requireAuth, twitchController.getStreamHistory);
 router.get('/history/:sessionId', requireAuth, twitchController.getStreamMetrics);
 router.get('/analytics/summary', requireAuth, twitchController.getAnalyticsSummary);
 router.get('/analytics/breakdown', requireAuth, twitchController.getAnalyticsBreakdown);
+router.get('/ads', requireAuth, twitchController.getTwitchAdSchedule);
 
 export default router;
