@@ -1,23 +1,17 @@
 //import pour ecrire les tests
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
+import { 
+    mockSelectReturn,
+    mockInsertReturning,
+    mockInsertResolve, 
+    mockDeleteResolve
+} from '../helpers/dbMock.js';
 
 //import de ce qu'on as besoin pour faire les tests (code métier)
 import { register, login, refresh, logout } from '../../src/controllers/authController.js';
-import { db } from '../../src/db/initBdd.js';
 import * as passwordUtils from '../../src/utils/password.js';
 import * as jwtUtils from '../../src/utils/jwt.js';
-
-
-// Mock de la base de données
-vi.mock('../../src/db/initBdd.js', () => ({
-    db: {
-        select: vi.fn(),
-        insert: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn()
-    }
-}));
 
 describe('Controller: authController', () => {
     //1. Déclaration des variable avec type stricts
@@ -47,36 +41,6 @@ describe('Controller: authController', () => {
         next = vi.fn();
     })
 
-    // --- Helpers de mock BDD réutilisables ---
-    // Simule db.select().from().where() -> renvoie un tableau de résultats
-    function mockSelectReturn<T>(data: T[]) {
-        vi.mocked(db.select).mockReturnValueOnce({
-            from: vi.fn().mockReturnValueOnce({
-                where: vi.fn().mockResolvedValueOnce(data)
-            })
-        } as unknown as ReturnType<typeof db.select>);
-    }
-    // Simule db.insert().values().returning() -> renvoie les enregistrements créés
-    function mockInsertReturning<T>(data: T[]) {
-        vi.mocked(db.insert).mockReturnValueOnce({
-            values: vi.fn().mockReturnValueOnce({
-                returning: vi.fn().mockResolvedValueOnce(data)
-            })
-        } as unknown as ReturnType<typeof db.insert>);
-    }
-    // Simule db.insert().values() sans returning (ex: refresh token)
-    function mockInsertResolve() {
-        vi.mocked(db.insert).mockReturnValueOnce({
-            values: vi.fn().mockResolvedValueOnce({})
-        } as unknown as ReturnType<typeof db.insert>);
-    }
-    // Simule db.delete().where()
-    function mockDeleteResolve() {
-        vi.mocked(db.delete).mockReturnValueOnce({
-            where: vi.fn().mockResolvedValueOnce({})
-        } as unknown as ReturnType<typeof db.delete>);
-    }
-
     describe('Inscription: register()', () => {
         it('Renvoi 400 si des champs obligatoire sont manquant', async () => {
             //données imcomplète
@@ -92,7 +56,11 @@ describe('Controller: authController', () => {
 
         it('Renvoi 400 si MDP trop court', async () => {
             //données imcomplète
-            req.body = { email: 'test@test.com', username: 'Test', password: '123'};
+            req.body = { 
+                email: 'test@test.com', 
+                username: 'Test', 
+                password: '123'
+            };
 
             await register(req as Request, res as unknown as Response, next);
 
@@ -277,7 +245,7 @@ describe('Controller: authController', () => {
             }
 
             vi.spyOn(jwtUtils, 'verifyRefreshToken').mockReturnValueOnce(
-                { userId: 'user_1' } as any
+                { userId: 'user_1' } as unknown as ReturnType<typeof jwtUtils.verifyRefreshToken>
             )
             mockSelectReturn([]);
 
