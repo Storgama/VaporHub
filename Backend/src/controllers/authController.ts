@@ -1,22 +1,44 @@
+import type { Request, Response, NextFunction } from 'express';
 import { eq } from 'drizzle-orm';
+import type { JwtPayload } from 'jsonwebtoken';
 import { db } from '../db/initBdd.js';
 import { users, refreshTokens } from '../db/schemas/index.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 
+interface RegisterBody {
+    email?: string;
+    username?: string;
+    password?: string;
+}
+
+interface LoginBody {
+    email?: string;
+    password?: string;
+}
+
+interface TokenBody {
+    refreshToken?: string;
+}
+
+interface TokenPayload extends JwtPayload {
+    userId: string;
+    role?: string;
+}
+
 /**
- * Permet l'inscription d'un utilisateur
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
- * @returns 
+ * Permet l'inscription d'un utilisateur et connecte automatiquement
  */
-export async function register(req, res, next) {
+export async function register(
+    req: Request<unknown, unknown, RegisterBody>,
+    res: Response,
+    next: NextFunction
+): Promise<void | Response> {
     try {
         const { email, username, password } = req.body;
 
         if (!email || !username || !password) {
-            return res.status(400).json({ error: 'les champs email, username, password sont requis'})
+            return res.status(400).json({ error: 'les champs email, username, password sont requis' });
         }
 
         if (password.length < 8) {
@@ -37,18 +59,30 @@ export async function register(req, res, next) {
             email,
             username,
             password: hashedPassword
-        }).returning(
-            { 
-                id: users.id, 
-                email: users.email, 
-                username: users.username, 
-                role: users.role 
-            }
-        );
-        
-        res.status(201).json({
+        }).returning({ 
+            id: users.id, 
+            email: users.email, 
+            username: users.username, 
+            role: users.role 
+        });
+
+        // Générer les tokens JWT (Access 15 min + Refresh 7 j)
+        const accessToken = generateAccessToken({ userId: newUser.id, role: newUser.role });
+        const refreshToken = generateRefreshToken({ userId: newUser.id });
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        // Sauvegarder le Refresh Token en BDD
+        await db.insert(refreshTokens).values({
+            userId: newUser.id,
+            token: refreshToken,
+            expiresAt
+        });
+
+        return res.status(201).json({
             message: 'Utilisateur créé avec succès',
-            user: newUser
+            user: newUser,
+            accessToken,
+            refreshToken
         });
     } catch (error) {
         next(error);
@@ -56,15 +90,14 @@ export async function register(req, res, next) {
 }
 
 /**
- * connect l'utilisateur
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
- * @returns 
+ * Connecte l'utilisateur
  */
-export async function login(req, res, next) {
+export async function login(
+    req: Request<unknown, unknown, LoginBody>,
+    res: Response,
+    next: NextFunction
+): Promise<void | Response> {
     try {
-
         const { email, password } = req.body;
 
         if (!email || !password) {
@@ -78,7 +111,7 @@ export async function login(req, res, next) {
             return res.status(401).json({ error: 'Identifiants invalides' });
         }
 
-        // Vérifier le mot de passe
+        // Vérifier le mot de passe via Argon2id
         const isPasswordValid = await verifyPassword(user.password, password);
 
         if (!isPasswordValid) {
@@ -87,10 +120,9 @@ export async function login(req, res, next) {
 
         // Créer les tokens
         const accessToken = generateAccessToken({ userId: user.id, role: user.role });
-
         const refreshToken = generateRefreshToken({ userId: user.id });
 
-        // Calculer l'expiration du Refresh Token (7 jours en millisecondes)
+        // Calculer l'expiration du Refresh Token (7 jours)
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         // Sauvegarder le Refresh Token en BDD
@@ -100,7 +132,7 @@ export async function login(req, res, next) {
             expiresAt
         });
 
-        res.json({
+        return res.status(200).json({
             message: 'Connexion réussie',
             user: { id: user.id, username: user.username, email: user.email, role: user.role },
             accessToken,
@@ -113,15 +145,14 @@ export async function login(req, res, next) {
 }
 
 /**
- * refresh le token de connexion
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
- * @returns 
+ * Rafraîchit le token d'accès
  */
-export async function refresh(req, res, next) {
+export async function refresh(
+    req: Request<unknown, unknown, TokenBody>,
+    res: Response,
+    next: NextFunction
+): Promise<void | Response> {
     try {
-
         const { refreshToken } = req.body;
 
         if (!refreshToken) {
@@ -129,11 +160,11 @@ export async function refresh(req, res, next) {
         }
 
         // 1. Vérifier la signature JWT du token
-        let decoded;
+        let decoded: TokenPayload;
 
         try {
-            decoded = verifyRefreshToken(refreshToken);
-        } catch (err) {
+            decoded = verifyRefreshToken(refreshToken) as unknown as TokenPayload;
+        } catch {
             return res.status(401).json({ error: 'Refresh Token invalide ou expiré' });
         }
 
@@ -154,7 +185,7 @@ export async function refresh(req, res, next) {
         // 4. Générer un nouvel Access Token
         const newAccessToken = generateAccessToken({ userId: user.id, role: user.role });
         
-        res.json({ accessToken: newAccessToken });
+        return res.status(200).json({ accessToken: newAccessToken });
 
     } catch (error) {
         next(error);
@@ -162,14 +193,14 @@ export async function refresh(req, res, next) {
 }
 
 /**
- * déco l'utilisateur et détruit sont token pour la sécuriter
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
+ * Déconnecte l'utilisateur et révoque son token
  */
-export async function logout(req, res, next) {
+export async function logout(
+    req: Request<unknown, unknown, TokenBody>,
+    res: Response,
+    next: NextFunction
+): Promise<void | Response> {
     try {
-
         const { refreshToken } = req.body;
 
         if (refreshToken) {
@@ -177,10 +208,9 @@ export async function logout(req, res, next) {
             await db.delete(refreshTokens).where(eq(refreshTokens.token, refreshToken));
         }
 
-        res.json({ message: 'Déconnexion réussie' });
+        return res.json({ message: 'Déconnexion réussie' });
 
     } catch (error) {
         next(error);
     }
-
 }
