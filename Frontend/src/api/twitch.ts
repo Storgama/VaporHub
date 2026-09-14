@@ -252,4 +252,65 @@ export async function snoozeAdApi(isMock: boolean = false): Promise<TwitchSnooze
   return data;
 }
 
+export interface TwitchBadgeItem {
+  label: string;
+  imageUrl: string;
+}
+
+export interface TwitchEmoteItem {
+  id: string;
+  name: string;
+  images: {
+    url_1x: string;
+    url_2x?: string;
+    url_4x?: string;
+  };
+}
+
+/**
+ * Récupère le catalogue des badges (globaux et chaîne)
+ */
+export async function getTwitchBadgesApi(isMock: boolean = false): Promise<Record<string, TwitchBadgeItem>> {
+  const query = isMock ? '?mock=true' : '';
+  const res = await httpClient(`/twitch/badges${query}`);
+  const data = (await res.json()) as { success: boolean; badges: Record<string, TwitchBadgeItem>; error?: string };
+  if (!res.ok) throw new Error(data.error || 'Impossible de charger les badges');
+  return data.badges || {};
+}
+
+/**
+ * Récupère les émotes personnalisées de la chaîne
+ */
+export async function getTwitchEmotesApi(isMock: boolean = false): Promise<TwitchEmoteItem[]> {
+  const query = isMock ? '?mock=true' : '';
+  const res = await httpClient(`/twitch/emotes${query}`);
+  const data = (await res.json()) as { success: boolean; emotes: TwitchEmoteItem[]; error?: string };
+  if (!res.ok) throw new Error(data.error || 'Impossible de charger les émotes');
+  return data.emotes || [];
+}
+
+export interface SendChatMessageResponse {
+  success: boolean;
+  messageId?: string;
+  isSent: boolean;
+  simulated?: boolean;
+}
+
+/**
+ * Envoie un message dans le tchat Twitch via le backend Helix
+ */
+export async function sendTwitchChatMessageApi(
+  message: string,
+  isMock: boolean = false
+): Promise<SendChatMessageResponse> {
+  const query = isMock ? '?mock=true' : '';
+  const res = await httpClient(`/twitch/chat/message${query}`, {
+    method: 'POST',
+    body: JSON.stringify({ message })
+  });
+  const data = (await res.json()) as SendChatMessageResponse & { error?: string };
+  if (!res.ok) throw new Error(data.error || 'Impossible d\'envoyer le message dans le tchat Twitch');
+  return data;
+}
+
 

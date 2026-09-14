@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import AnalyticsView from '../../src/views/AnalyticsView.vue';
-import * as twitchApi from '../../src/api/twitch.js';
+import * as twitchApi from '../../src/api/twitch';
 
 vi.mock('chart.js/auto', () => {
     return {
@@ -35,7 +35,7 @@ describe('📊 Vue : AnalyticsView.vue (Page Statistiques Dynamiques)', () => {
             ]
         };
 
-        const breakdownSpy = vi.spyOn(twitchApi, 'getTwitchBreakdownApi').mockResolvedValue(mockBreakdown);
+        const breakdownSpy = vi.spyOn(twitchApi, 'getTwitchBreakdownApi').mockResolvedValue(mockBreakdown as unknown as twitchApi.TwitchBreakdownResponse);
 
         const wrapper = mount(AnalyticsView);
         await wrapper.vm.$nextTick();
@@ -66,7 +66,7 @@ describe('📊 Vue : AnalyticsView.vue (Page Statistiques Dynamiques)', () => {
             streamsPerWeek: 3.0,
             topDays: [],
             evolutionTimeline: []
-        });
+        } as unknown as twitchApi.TwitchBreakdownResponse);
 
         const wrapper = mount(AnalyticsView);
         await wrapper.vm.$nextTick();

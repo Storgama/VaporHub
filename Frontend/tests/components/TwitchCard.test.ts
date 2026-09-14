@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import TwitchCard from '../../src/components/TwitchCard.vue';
-import * as twitchApi from '../../src/api/twitch.js';
+import * as twitchApi from '../../src/api/twitch';
 
 describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
     beforeEach(() => {
@@ -10,9 +10,10 @@ describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
 
     it('doit afficher l\'état non lié et rediriger vers Twitch au clic sur le bouton', async () => {
         vi.spyOn(twitchApi, 'getTwitchStatsApi').mockResolvedValueOnce({
+            isLive: false,
             linked: false,
             message: 'Aucun compte Twitch lié'
-        });
+        } as unknown as twitchApi.TwitchStatsResponse);
 
         const authUrlSpy = vi.spyOn(twitchApi, 'getTwitchAuthUrlApi').mockResolvedValueOnce('https://twitch.tv/oauth');
 
@@ -30,7 +31,7 @@ describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
         
         const linkBtn = wrapper.findAll('button').find(b => b.text().includes('Lier mon compte Twitch'));
         expect(linkBtn).toBeDefined();
-        await linkBtn.trigger('click');
+        await linkBtn!.trigger('click');
 
         expect(authUrlSpy).toHaveBeenCalledTimes(1);
     });
@@ -42,7 +43,7 @@ describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
             avatar: 'https://avatar.png',
             isLive: false,
             viewerCount: 0
-        });
+        } as unknown as twitchApi.TwitchStatsResponse);
 
         const wrapper = mount(TwitchCard);
         await wrapper.vm.$nextTick();
@@ -62,7 +63,7 @@ describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
             game: 'Valorant',
             viewerCount: 154,
             thumbnailUrl: 'https://thumb_320x180.jpg'
-        });
+        } as unknown as twitchApi.TwitchStatsResponse);
 
         const futureTime = Math.floor(Date.now() / 1000) + 600;
         vi.spyOn(twitchApi, 'getTwitchAdScheduleApi').mockResolvedValueOnce({
@@ -73,7 +74,7 @@ describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
                 duration: 90,
                 preroll_free_time: 1200
             }
-        });
+        } as unknown as twitchApi.TwitchAdScheduleData);
 
         const wrapper = mount(TwitchCard);
         await wrapper.vm.$nextTick();
@@ -97,7 +98,7 @@ describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
             channel: 'StreamerTest',
             isLive: false,
             viewerCount: 0
-        });
+        } as unknown as twitchApi.TwitchStatsResponse);
 
         const wrapper = mount(TwitchCard);
         await wrapper.vm.$nextTick();
@@ -115,7 +116,7 @@ describe('🧩 Composant : TwitchCard.vue (Cockpit Live & Ads Radar)', () => {
             linked: true,
             channel: 'StreamerTest',
             isLive: false
-        });
+        } as unknown as twitchApi.TwitchStatsResponse);
 
         const wrapper = mount(TwitchCard);
         await wrapper.vm.$nextTick();

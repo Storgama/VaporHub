@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { getTwitchStatsApi, getTwitchAuthUrlApi, getTwitchAdScheduleApi } from '../api/twitch.js';
 import { 
   Radio, 
@@ -38,12 +38,23 @@ interface TwitchCardAdSchedule {
   [key: string]: unknown;
 }
 
+const props = defineProps<{
+  isMock?: boolean;
+}>();
+
 const stats = ref<TwitchCardStats | null>(null);
 const adSchedule = ref<TwitchCardAdSchedule | null>(null);
 const loading = ref<boolean>(true);
 const error = ref<string>('');
 const isRefreshing = ref<boolean>(false);
-const isMockMode = ref<boolean>(false); // 🧪 État du bouton Mock
+const isMockMode = ref<boolean>(props.isMock ?? false); // 🧪 État du bouton Mock
+
+watch(() => props.isMock, (newVal) => {
+  if (newVal !== undefined && newVal !== isMockMode.value) {
+    isMockMode.value = newVal;
+    loadStats(false);
+  }
+});
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 // Formater les secondes en minutes / secondes
@@ -94,9 +105,14 @@ async function loadStats(isSilent: boolean = false): Promise<void> {
   }
 }
 
+const emit = defineEmits<{
+  (e: 'mock-change', isMock: boolean): void;
+}>();
+
 // Basculer facilement entre le Live Réel et le Mock
 function toggleMock(): void {
   isMockMode.value = !isMockMode.value;
+  emit('mock-change', isMockMode.value);
   loadStats(false);
 }
 
@@ -152,7 +168,7 @@ onUnmounted(() => {
 <template>
   <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative">
     
-    <!-- En-tête avec bouton Mock Dev Switch -->
+    <!-- En-tête -->
     <div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800/80">
       <div class="flex items-center gap-2.5">
         <div class="p-2 bg-purple-600/10 text-purple-400 rounded-xl border border-purple-500/20">
@@ -161,18 +177,12 @@ onUnmounted(() => {
         <h2 class="text-lg font-bold text-zinc-100">Twitch Live Tracker</h2>
       </div>
 
-      <!-- Bouton ON / OFF pour simuler un live -->
-      <button 
-        @click="toggleMock"
-        :class="['text-xs px-3 py-1.5 rounded-lg border transition font-semibold flex items-center gap-1.5 cursor-pointer',
-                 isMockMode 
-                   ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-950/40' 
-                   : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/60 hover:text-zinc-200 hover:bg-zinc-800']"
-        title="Basculer entre l'état réel et la simulation de live en dev"
+      <span
+        v-if="isMockMode"
+        class="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold"
       >
-        <FlaskConical class="w-3.5 h-3.5 text-amber-400" />
-        <span>{{ isMockMode ? 'Simulateur : ACTIF' : 'Simuler un Live' }}</span>
-      </button>
+        Simulation
+      </span>
     </div>
 
     <!-- État 1 : Chargement initial -->

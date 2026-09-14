@@ -83,6 +83,8 @@ export function buildAuthUrl(userId: string): string {
     const redirectUri = process.env.TWITCH_REDIRECT_URI || '';
     const scopes = [
         'user:read:email', 
+        'user:read:chat',
+        'user:write:chat',
         'channel:read:stream_key', 
         'channel:read:ads',
         'channel:edit:commercial',
@@ -427,4 +429,144 @@ export async function snoozeNextAd(
 
     return data.data[0];
 }
+
+export interface TwitchBadgeVersion {
+    id: string;
+    image_url_1x: string;
+    image_url_2x?: string;
+    image_url_4x?: string;
+    title?: string;
+    description?: string;
+    click_action?: string;
+    click_url?: string;
+}
+
+export interface TwitchBadgeSet {
+    set_id: string;
+    versions: TwitchBadgeVersion[];
+}
+
+export interface TwitchChannelEmote {
+    id: string;
+    name: string;
+    images: {
+        url_1x: string;
+        url_2x?: string;
+        url_4x?: string;
+    };
+    tier?: string;
+    emote_type?: string;
+    emote_set_id?: string;
+}
+
+/**
+ * Récupère les badges globaux Twitch (Modérateur, VIP, Artiste, etc.)
+ */
+export async function fetchGlobalBadges(accessToken: string): Promise<TwitchBadgeSet[]> {
+    try {
+        const res = await fetch(`${TWITCH_HELIX_URL}/chat/badges/global`, {
+            headers: {
+                'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return [];
+        const data = (await res.json()) as { data?: TwitchBadgeSet[] };
+        return data.data || [];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Récupère les badges personnalisés de la chaîne (Abonnés, Bits)
+ */
+export async function fetchChannelBadges(
+    broadcasterId: string,
+    accessToken: string
+): Promise<TwitchBadgeSet[]> {
+    try {
+        const res = await fetch(`${TWITCH_HELIX_URL}/chat/badges?broadcaster_id=${encodeURIComponent(broadcasterId)}`, {
+            headers: {
+                'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return [];
+        const data = (await res.json()) as { data?: TwitchBadgeSet[] };
+        return data.data || [];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Récupère les émotes personnalisées de la chaîne
+ */
+export async function fetchChannelEmotes(
+    broadcasterId: string,
+    accessToken: string
+): Promise<TwitchChannelEmote[]> {
+    try {
+        const res = await fetch(`${TWITCH_HELIX_URL}/chat/emotes?broadcaster_id=${encodeURIComponent(broadcasterId)}`, {
+            headers: {
+                'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return [];
+        const data = (await res.json()) as { data?: TwitchChannelEmote[] };
+        return data.data || [];
+    } catch {
+        return [];
+    }
+}
+
+export interface SendChatMessageResult {
+    messageId?: string;
+    isSent: boolean;
+    dropReason?: string;
+}
+
+/**
+ * Envoie un message dans le tchat Twitch via l'API Helix
+ */
+export async function sendChatMessage(
+    broadcasterId: string,
+    senderId: string,
+    accessToken: string,
+    message: string
+): Promise<SendChatMessageResult> {
+    const res = await fetch(`${TWITCH_HELIX_URL}/chat/messages`, {
+        method: 'POST',
+        headers: {
+            'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            broadcaster_id: broadcasterId,
+            sender_id: senderId,
+            message
+        }),
+        signal: AbortSignal.timeout(5000)
+    });
+
+    if (!res.ok) {
+        const errData = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(errData.message || 'Impossible d\'envoyer le message dans le tchat Twitch');
+    }
+
+    const data = (await res.json()) as { data?: Array<{ message_id: string; is_sent: boolean; drop_reason?: { code: string; message: string } }> };
+    const first = data.data?.[0];
+    return {
+        messageId: first?.message_id,
+        isSent: first?.is_sent ?? true,
+        dropReason: first?.drop_reason?.message
+    };
+}
+
 

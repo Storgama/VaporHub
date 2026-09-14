@@ -5,7 +5,7 @@ import AuthView from '../../src/views/AuthView.vue';
 const mockLogin = vi.fn();
 const mockRegister = vi.fn();
 
-vi.mock('../../src/state/useAuth.js', () => ({
+vi.mock('../../src/state/useAuth', () => ({
     useAuth: () => ({
         login: mockLogin,
         register: mockRegister

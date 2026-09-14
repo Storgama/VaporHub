@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loginApi, registerApi, logoutApi } from '../../src/api/auth.js';
-import * as clientModule from '../../src/api/client.js';
+import { loginApi, registerApi, logoutApi } from '../../src/api/auth';
+import * as clientModule from '../../src/api/client';
 
 describe('🚪 API : Auth Endpoints (auth.ts)', () => {
     beforeEach(() => {
@@ -12,7 +12,7 @@ describe('🚪 API : Auth Endpoints (auth.ts)', () => {
         vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: true,
             json: async () => mockResponse
-        });
+        } as unknown as Response);
 
         const res = await loginApi('test@test.com', 'pass');
         expect(res).toEqual(mockResponse);
@@ -22,7 +22,7 @@ describe('🚪 API : Auth Endpoints (auth.ts)', () => {
         vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: false,
             json: async () => ({ error: 'Mauvais mot de passe' })
-        });
+        } as unknown as Response);
 
         await expect(loginApi('test@test.com', 'pass')).rejects.toThrow('Mauvais mot de passe');
     });
@@ -32,7 +32,7 @@ describe('🚪 API : Auth Endpoints (auth.ts)', () => {
         vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: true,
             json: async () => mockResponse
-        });
+        } as unknown as Response);
 
         const res = await registerApi('NewUser', 'new@test.com', 'pass');
         expect(res).toEqual(mockResponse);
@@ -42,13 +42,13 @@ describe('🚪 API : Auth Endpoints (auth.ts)', () => {
         vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: false,
             json: async () => ({ error: 'Email existant' })
-        });
+        } as unknown as Response);
 
         await expect(registerApi('NewUser', 'new@test.com', 'pass')).rejects.toThrow('Email existant');
     });
 
     it('logoutApi doit appeler /auth/logout', async () => {
-        const mockSpy = vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({ ok: true });
+        const mockSpy = vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({ ok: true } as unknown as Response);
         await logoutApi('refresh_token_to_delete');
         expect(mockSpy).toHaveBeenCalledTimes(1);
     });

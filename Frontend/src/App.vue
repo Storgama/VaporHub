@@ -18,7 +18,7 @@
     <Navbar :current-view="currentView" @change-view="(v: string) => currentView = (v as ViewType)" />
 
     <!-- Contenu Principal -->
-    <main class="flex-1 max-w-6xl w-full mx-auto px-4 pb-12">
+    <main class="flex-1 max-w-[1920px] w-full mx-auto px-4 lg:px-8 pb-12">
       <template v-if="isAuthenticated">
         <DashboardView v-if="currentView === 'dashboard'" />
         <AnalyticsView v-else-if="currentView === 'analytics'" />

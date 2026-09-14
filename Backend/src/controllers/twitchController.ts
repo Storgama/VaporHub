@@ -572,4 +572,180 @@ export async function snoozeAd(
     }
 }
 
+/**
+ * Récupère les badges Twitch (globaux et de chaîne) pour le tchat
+ */
+export async function getTwitchBadges(
+    req: Request,
+    res: Response,
+    next: NextFn
+): Promise<void | Response> {
+    try {
+        const user = (req as Request & { user?: AuthUser }).user;
+        const userId = user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+        const isMock = req.query?.mock === 'true';
+        if (isMock) {
+            return res.json({
+                success: true,
+                simulated: true,
+                badges: {
+                    broadcaster: { id: 'broadcaster', label: 'Diffuseur', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/1' },
+                    moderator: { id: 'moderator', label: 'Modérateur', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/1' },
+                    vip: { id: 'vip', label: 'VIP', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/1' },
+                    artist: { id: 'artist', label: 'Artiste', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/4300a897-03dc-4e83-8c0e-c332fee7057f/1' },
+                    founder: { id: 'founder', label: 'Fondateur', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/511b78a9-ab37-472f-9569-457753bbe7d3/1' },
+                    subscriber: { id: 'subscriber', label: 'Abonné', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/1' },
+                    partner: { id: 'partner', label: 'Partenaire', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/d12a2e27-16f6-41d0-ab77-b780518f00a3/1' },
+                    staff: { id: 'staff', label: 'Staff', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/d97c37bd-a6f5-4c38-8f57-4e4bef88af34/1' },
+                    premium: { id: 'premium', label: 'Prime Gaming', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/bbbe0db0-a598-423e-86d0-f9fb98ca1933/1' },
+                    zevent: { id: 'zevent', label: 'ZEvent', imageUrl: 'https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/1' }
+                }
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.status(404).json({ error: 'Aucun compte Twitch lié' });
+
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.status(401).json({ error: 'Token Twitch expiré ou invalide' });
+
+        const [globalBadges, channelBadges] = await Promise.all([
+            twitchService.fetchGlobalBadges(accessToken),
+            twitchService.fetchChannelBadges(tokenRecord.providerAccountId, accessToken)
+        ]);
+
+        const badgeMap: Record<string, { label: string; imageUrl: string; versions?: unknown }> = {};
+        for (const b of globalBadges) {
+            const v = b.versions?.[0];
+            badgeMap[b.set_id] = {
+                label: v?.title || b.set_id,
+                imageUrl: v?.image_url_1x || v?.image_url_2x || v?.image_url_4x || '',
+                versions: b.versions
+            };
+        }
+        for (const b of channelBadges) {
+            const v = b.versions?.[0];
+            badgeMap[b.set_id] = {
+                label: v?.title || b.set_id,
+                imageUrl: v?.image_url_1x || v?.image_url_2x || v?.image_url_4x || '',
+                versions: b.versions
+            };
+        }
+
+        return res.json({
+            success: true,
+            badges: badgeMap
+        });
+    } catch (error) {
+        forwardError(next, error);
+    }
+}
+
+/**
+ * Récupère les émotes personnalisées de la chaîne pour le tchat
+ */
+export async function getTwitchEmotes(
+    req: Request,
+    res: Response,
+    next: NextFn
+): Promise<void | Response> {
+    try {
+        const user = (req as Request & { user?: AuthUser }).user;
+        const userId = user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+        const isMock = req.query?.mock === 'true';
+        if (isMock) {
+            return res.json({
+                success: true,
+                simulated: true,
+                emotes: [
+                    { id: 'mock_1', name: 'vaporHype', url: 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_7b6863b15c544e3e8f85f1c9bb7bb34d/default/dark/2.0' },
+                    { id: 'mock_2', name: 'vaporGg', url: 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_5b2d5a37452d431481b95b8ee9e53066/default/dark/2.0' },
+                    { id: 'mock_3', name: 'vaporLove', url: 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_dc22b7a9de584bb78d8a7ff8b049d562/default/dark/2.0' },
+                    { id: 'mock_4', name: 'vaporRip', url: 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_812e9b08d24b4231920703c16263595f/default/dark/2.0' }
+                ]
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.status(404).json({ error: 'Aucun compte Twitch lié' });
+
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.status(401).json({ error: 'Token Twitch expiré ou invalide' });
+
+        const emotes = await twitchService.fetchChannelEmotes(tokenRecord.providerAccountId, accessToken);
+
+        return res.json({
+            success: true,
+            emotes
+        });
+    } catch (error) {
+        forwardError(next, error);
+    }
+}
+
+/**
+ * Envoie un message dans le tchat Twitch (ou simulation)
+ */
+export async function postChatMessage(
+    req: Request,
+    res: Response,
+    next: NextFn
+): Promise<void | Response> {
+    try {
+        const user = (req as Request & { user?: AuthUser }).user;
+        const userId = user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+        const { message } = req.body as { message?: string };
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Le contenu du message est requis' });
+        }
+
+        const isMock = req.query?.mock === 'true';
+        if (isMock) {
+            return res.json({
+                success: true,
+                simulated: true,
+                messageId: `mock-msg-${Date.now()}`,
+                isSent: true
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.status(404).json({ error: 'Aucun compte Twitch lié' });
+
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.status(401).json({ error: 'Token Twitch expiré ou invalide' });
+
+        try {
+            const result = await twitchService.sendChatMessage(
+                tokenRecord.providerAccountId,
+                tokenRecord.providerAccountId,
+                accessToken,
+                message.trim()
+            );
+            return res.json({
+                success: true,
+                ...result
+            });
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Impossible d\'envoyer le message';
+            return res.status(400).json({ error: errorMsg });
+        }
+    } catch (error) {
+        forwardError(next, error);
+    }
+}
+
+
 
