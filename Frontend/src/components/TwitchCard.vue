@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { getTwitchStatsApi, getTwitchAuthUrlApi, getTwitchAdScheduleApi } from '../api/twitch.js';
 import { 
@@ -11,20 +11,42 @@ import {
   ExternalLink, 
   Timer, 
   Clock, 
-  ShieldCheck,
+  ShieldCheck, 
   FlaskConical 
 } from 'lucide-vue-next';
 
-const stats = ref(null);
-const adSchedule = ref(null);
-const loading = ref(true);
-const error = ref('');
-const isRefreshing = ref(false);
-const isMockMode = ref(false); // 🧪 État du bouton Mock
-let pollInterval = null;
+interface TwitchCardStats {
+  linked?: boolean;
+  channel?: string;
+  avatar?: string;
+  isLive?: boolean;
+  viewerCount?: number;
+  game?: string;
+  title?: string;
+  thumbnailUrl?: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+interface TwitchCardAdSchedule {
+  next_ad_at?: number;
+  duration?: number;
+  preroll_free_time?: number;
+  snooze_count?: number;
+  last_ad_at?: number;
+  [key: string]: unknown;
+}
+
+const stats = ref<TwitchCardStats | null>(null);
+const adSchedule = ref<TwitchCardAdSchedule | null>(null);
+const loading = ref<boolean>(true);
+const error = ref<string>('');
+const isRefreshing = ref<boolean>(false);
+const isMockMode = ref<boolean>(false); // 🧪 État du bouton Mock
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 // Formater les secondes en minutes / secondes
-function formatSeconds(seconds) {
+function formatSeconds(seconds?: number | null): string {
   if (!seconds || seconds <= 0) return '0s';
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -32,7 +54,7 @@ function formatSeconds(seconds) {
 }
 
 // Calculer le compte à rebours jusqu'à la prochaine pub
-function formatCountdown(timestampUnix) {
+function formatCountdown(timestampUnix?: number | null): string {
   if (!timestampUnix) return 'Inconnu';
   const nowSec = Math.floor(Date.now() / 1000);
   const diffSec = timestampUnix - nowSec;
@@ -40,7 +62,7 @@ function formatCountdown(timestampUnix) {
   return formatSeconds(diffSec);
 }
 
-async function loadStats(isSilent = false) {
+async function loadStats(isSilent: boolean = false): Promise<void> {
   if (!isSilent) loading.value = true;
   else isRefreshing.value = true;
   
@@ -48,21 +70,23 @@ async function loadStats(isSilent = false) {
   const query = isMockMode.value ? '?mock=true' : '';
 
   try {
-    stats.value = await getTwitchStatsApi(query);
+    stats.value = (await getTwitchStatsApi(query)) as TwitchCardStats;
     
     // Si le streamer est en live, on interroge le Radar Publicitaire
     if (stats.value && stats.value.isLive) {
       try {
         const adsData = await getTwitchAdScheduleApi(query);
-        adSchedule.value = adsData.hasAds ? adsData.adSchedule : null;
+        adSchedule.value = adsData.hasAds ? (adsData.adSchedule as TwitchCardAdSchedule | null) : null;
       } catch {
         adSchedule.value = null;
       }
     } else {
       adSchedule.value = null;
     }
-  } catch (err) {
-    if (!isSilent) error.value = err.message;
+  } catch (err: unknown) {
+    if (!isSilent) {
+      error.value = err instanceof Error ? err.message : String(err);
+    }
   } finally {
     loading.value = false;
     isRefreshing.value = false;
@@ -70,21 +94,21 @@ async function loadStats(isSilent = false) {
 }
 
 // Basculer facilement entre le Live Réel et le Mock
-function toggleMock() {
+function toggleMock(): void {
   isMockMode.value = !isMockMode.value;
   loadStats(false);
 }
 
-async function handleLinkTwitch() {
+async function handleLinkTwitch(): Promise<void> {
   try {
     const url = await getTwitchAuthUrlApi();
     window.location.href = url;
-  } catch (err) {
-    error.value = err.message;
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : String(err);
   }
 }
 
-function handleVisibilityChange() {
+function handleVisibilityChange(): void {
   if (document.hidden) {
     stopPolling();
   } else {
@@ -93,14 +117,14 @@ function handleVisibilityChange() {
   }
 }
 
-function startPolling() {
+function startPolling(): void {
   stopPolling();
   pollInterval = setInterval(() => {
     loadStats(true);
   }, 30000);
 }
 
-function stopPolling() {
+function stopPolling(): void {
   if (pollInterval) {
     clearInterval(pollInterval);
     pollInterval = null;

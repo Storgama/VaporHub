@@ -1,37 +1,42 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useAuth } from '../state/useAuth.js';
 import { Mail, Lock, User, Sparkles, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-vue-next';
 
+interface AuthMessage {
+  text: string;
+  isError: boolean;
+}
+
 const { login, register } = useAuth();
 
-const currentTab = ref('login');
+const currentTab = ref<'login' | 'register'>('login');
 const loginForm = ref({ email: '', password: '' });
 const registerForm = ref({ username: '', email: '', password: '' });
-const message = ref({ text: '', isError: true });
-const loading = ref(false);
+const message = ref<AuthMessage>({ text: '', isError: true });
+const loading = ref<boolean>(false);
 
-async function handleLogin() {
+async function handleLogin(): Promise<void> {
   message.value = { text: '', isError: true };
   loading.value = true;
   try {
     await login(loginForm.value.email, loginForm.value.password);
-  } catch (err) {
-    message.value = { text: err.message, isError: true };
+  } catch (err: unknown) {
+    message.value = { text: err instanceof Error ? err.message : String(err), isError: true };
   } finally {
     loading.value = false;
   }
 }
 
-async function handleRegister() {
+async function handleRegister(): Promise<void> {
   message.value = { text: '', isError: true };
   loading.value = true;
   try {
     await register(registerForm.value.username, registerForm.value.email, registerForm.value.password);
     message.value = { text: 'Compte créé avec succès ! Connecte-toi maintenant.', isError: false };
     currentTab.value = 'login';
-  } catch (err) {
-    message.value = { text: err.message, isError: true };
+  } catch (err: unknown) {
+    message.value = { text: err instanceof Error ? err.message : String(err), isError: true };
   } finally {
     loading.value = false;
   }

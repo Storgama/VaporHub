@@ -25,6 +25,7 @@ describe('🛡️ Middleware : validate', () => {
         };
         next = vi.fn();
     });
+
     // 1. DÉLÉGATION À ERRORHANDLER : Validateur inexistant
     it('doit transmettre une erreur à next() si le validateur/schéma n\'existe pas', async () => {
         // Schéma manquant (null ou undefined)
@@ -37,6 +38,7 @@ describe('🛡️ Middleware : validate', () => {
         }));
         expect(res.status).not.toHaveBeenCalled();
     });
+
     // 2. CAS LIMITE : Requête POST sans body (req.body undefined)
     it('doit rejeter avec un statut 400 si req.body est absent ou indéfini', async () => {
         req.body = undefined;
@@ -85,6 +87,19 @@ describe('🛡️ Middleware : validate', () => {
             username: 'streamer'
         });
         expect((req.body as Record<string, unknown>).injectedField).toBeUndefined();
+    });
+
+    // 6. champ vide
+    it('doit rejeter avec un statut 400 si req.body est un objet vide ({})', async () => {
+        req.body = {};
+        const middleware = validate(dummySchema);
+        await middleware(req as Request, res as Response, next);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            error: 'Des champs sont vides'
+        });
+        expect(next).not.toHaveBeenCalled();
     });
 
 });

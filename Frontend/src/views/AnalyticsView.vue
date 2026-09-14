@@ -1,6 +1,6 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { getTwitchBreakdownApi } from '../api/twitch.js';
+import { getTwitchBreakdownApi, type TwitchBreakdownResponse, type TimelinePoint } from '../api/twitch.js';
 import Chart from 'chart.js/auto';
 import { 
   BarChart3, 
@@ -13,40 +13,48 @@ import {
   Activity
 } from 'lucide-vue-next';
 
-const selectedPeriod = ref('all'); // 'weekly', 'monthly', 'yearly', 'all'
-const breakdown = ref(null);
-const loading = ref(true);
-const chartCanvas = ref(null);
-let chartInstance = null;
+export type PeriodType = 'weekly' | 'monthly' | 'yearly' | 'all';
 
-const periods = [
+interface PeriodOption {
+  id: PeriodType;
+  label: string;
+  desc: string;
+}
+
+const selectedPeriod = ref<PeriodType>('all');
+const breakdown = ref<TwitchBreakdownResponse | null>(null);
+const loading = ref<boolean>(true);
+const chartCanvas = ref<HTMLCanvasElement | null>(null);
+let chartInstance: Chart | null = null;
+
+const periods: PeriodOption[] = [
   { id: 'weekly', label: 'Hebdo (7j)', desc: 'des 7 derniers jours' },
   { id: 'monthly', label: 'Mensuel (30j)', desc: 'des 30 derniers jours' },
   { id: 'yearly', label: 'Annuel (1 an)', desc: 'de la dernière année' },
   { id: 'all', label: 'Tout l\'historique', desc: 'sur l\'ensemble de vos streams' }
 ];
 
-const currentPeriodObj = computed(() => {
+const currentPeriodObj = computed<PeriodOption>(() => {
   return periods.find(p => p.id === selectedPeriod.value) || periods[3];
 });
 
-async function loadBreakdown(period = selectedPeriod.value) {
+async function loadBreakdown(period: PeriodType = selectedPeriod.value): Promise<void> {
   selectedPeriod.value = period;
   loading.value = true;
   try {
     breakdown.value = await getTwitchBreakdownApi(period);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(err);
   } finally {
     loading.value = false;
     await nextTick();
-    if (breakdown.value?.evolutionTimeline?.length > 0) {
+    if (breakdown.value?.evolutionTimeline && breakdown.value.evolutionTimeline.length > 0) {
       renderEvolutionChart(breakdown.value.evolutionTimeline);
     }
   }
 }
 
-function renderEvolutionChart(timeline) {
+function renderEvolutionChart(timeline: TimelinePoint[]): void {
   if (!chartCanvas.value) return;
 
   if (chartInstance) {
@@ -54,7 +62,7 @@ function renderEvolutionChart(timeline) {
   }
 
   const ctx = chartCanvas.value.getContext('2d');
-  let gradient = 'rgba(145, 70, 255, 0.2)';
+  let gradient: CanvasGradient | string = 'rgba(145, 70, 255, 0.2)';
   if (ctx && typeof ctx.createLinearGradient === 'function') {
     const linearGrad = ctx.createLinearGradient(0, 0, 0, 320);
     linearGrad.addColorStop(0, 'rgba(145, 70, 255, 0.35)');

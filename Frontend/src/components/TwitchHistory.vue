@@ -1,28 +1,53 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
-import { getTwitchHistoryApi, getTwitchMetricsApi, getTwitchSummaryApi } from '../api/twitch.js';
+import { 
+  getTwitchHistoryApi, 
+  getTwitchMetricsApi, 
+  getTwitchSummaryApi,
+  type TwitchSessionItem,
+  type TwitchSummaryResponse,
+  type TwitchMetricsResponse
+} from '../api/twitch.js';
 import Chart from 'chart.js/auto';
 import { TrendingUp, Users, Calendar, Clock, Gamepad2, Layers, RefreshCw, Flame, Eye, Trophy } from 'lucide-vue-next';
 
-const history = ref([]);
-const summary = ref(null);
-const selectedSession = ref(null);
-const selectedRetention = ref(null);
-const loading = ref(true);
-const chartCanvas = ref(null);
-let chartInstance = null;
+export interface RetentionTier {
+  badge: 'captive' | 'stable' | 'churn' | string;
+  label: string;
+}
+
+export interface SessionRetention {
+  retentionRate?: number;
+  watchTimeHours?: number;
+  retentionTier?: RetentionTier;
+  [key: string]: unknown;
+}
+
+interface MetricItem {
+  timestamp: string;
+  viewerCount: number;
+  [key: string]: unknown;
+}
+
+const history = ref<TwitchSessionItem[]>([]);
+const summary = ref<TwitchSummaryResponse | null>(null);
+const selectedSession = ref<TwitchSessionItem | null>(null);
+const selectedRetention = ref<SessionRetention | null>(null);
+const loading = ref<boolean>(true);
+const chartCanvas = ref<HTMLCanvasElement | null>(null);
+let chartInstance: Chart | null = null;
 
 // Formater la date en français
-function formatDate(dateStr) {
+function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('fr-FR', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
   });
 }
 
 // Calculer la durée du live
-function formatDuration(start, end) {
+function formatDuration(start: string, end?: string | null): string {
   if (!end) return 'En cours';
-  const diffMs = new Date(end) - new Date(start);
+  const diffMs = new Date(end).getTime() - new Date(start).getTime();
   const diffMins = Math.round(diffMs / (1000 * 60));
   const hours = Math.floor(diffMins / 60);
   const mins = diffMins % 60;
@@ -30,7 +55,7 @@ function formatDuration(start, end) {
 }
 
 // Charger l'historique et le résumé
-async function loadAnalytics() {
+async function loadAnalytics(): Promise<void> {
   loading.value = true;
   try {
     const [historyData, summaryData] = await Promise.all([
@@ -44,7 +69,7 @@ async function loadAnalytics() {
     if (history.value.length > 0) {
       selectSession(history.value[0]);
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.error(err);
   } finally {
     loading.value = false;
@@ -52,20 +77,20 @@ async function loadAnalytics() {
 }
 
 // Sélectionner un stream et tracer sa courbe
-async function selectSession(session) {
+async function selectSession(session: TwitchSessionItem): Promise<void> {
   selectedSession.value = session;
   try {
-    const data = await getTwitchMetricsApi(session.id);
-    selectedRetention.value = data.retention || null;
+    const data: TwitchMetricsResponse = await getTwitchMetricsApi(session.id);
+    selectedRetention.value = (data.retention as unknown as SessionRetention) || null;
     await nextTick();
-    renderChart(data.metrics);
-  } catch (err) {
+    renderChart(data.metrics as MetricItem[]);
+  } catch (err: unknown) {
     console.error(err);
   }
 }
 
 // Dessiner le graphique Chart.js avec dégradé
-function renderChart(metrics) {
+function renderChart(metrics: MetricItem[]): void {
   if (!chartCanvas.value) return;
 
   if (chartInstance) {
@@ -73,10 +98,13 @@ function renderChart(metrics) {
   }
 
   const ctx = chartCanvas.value.getContext('2d');
-  
-  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, 'rgba(145, 70, 255, 0.4)');
-  gradient.addColorStop(1, 'rgba(145, 70, 255, 0.0)');
+  let gradient: CanvasGradient | string = 'rgba(145, 70, 255, 0.2)';
+  if (ctx && typeof ctx.createLinearGradient === 'function') {
+    const linearGrad = ctx.createLinearGradient(0, 0, 0, 300);
+    linearGrad.addColorStop(0, 'rgba(145, 70, 255, 0.4)');
+    linearGrad.addColorStop(1, 'rgba(145, 70, 255, 0.0)');
+    gradient = linearGrad;
+  }
 
   const labels = metrics.map(m => new Date(m.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
   const viewers = metrics.map(m => m.viewerCount);
@@ -271,11 +299,11 @@ onMounted(() => {
           <div v-if="selectedRetention" class="flex items-center gap-2">
             <span 
               :class="['text-xs font-bold px-2.5 py-1 rounded-lg border',
-                       selectedRetention.retentionTier.badge === 'captive' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                       selectedRetention.retentionTier.badge === 'stable' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                       selectedRetention.retentionTier?.badge === 'captive' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                       selectedRetention.retentionTier?.badge === 'stable' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
                        'bg-amber-500/10 text-amber-400 border-amber-500/30']"
             >
-              {{ selectedRetention.retentionTier.label }} ({{ selectedRetention.retentionRate }}%)
+              {{ selectedRetention.retentionTier?.label }} ({{ selectedRetention.retentionRate }}%)
             </span>
             <span class="text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2.5 py-1 rounded-lg font-medium">
               {{ selectedRetention.watchTimeHours }} h vues
