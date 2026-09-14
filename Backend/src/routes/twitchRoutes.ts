@@ -15,6 +15,11 @@ router.get('/analytics/summary', requireAuth, twitchController.getAnalyticsSumma
 router.get('/analytics/breakdown', requireAuth, twitchController.getAnalyticsBreakdown);
 router.get('/ads', requireAuth, twitchController.getTwitchAdSchedule);
 
+// Données du Tchat (Badges & Émotes & Envoi de message)
+router.get('/badges', requireAuth, twitchController.getTwitchBadges);
+router.get('/emotes', requireAuth, twitchController.getTwitchEmotes);
+router.post('/chat/message', requireAuth, twitchController.postChatMessage);
+
 // Actions Rapides de Streamer (Pubs, Raids, Snooze)
 router.post('/actions/commercial', requireAuth, validate(commercialSchema), twitchController.triggerCommercial);
 router.post('/actions/raid', requireAuth, validate(raidSchema), twitchController.startRaid);

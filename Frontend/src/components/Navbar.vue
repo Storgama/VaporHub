@@ -20,7 +20,7 @@ const { user, isAuthenticated, logout } = useAuth();
 
 <template>
   <header v-if="isAuthenticated" class="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/80 px-6 py-4 mb-8">
-    <div class="max-w-6xl mx-auto flex justify-between items-center">
+    <div class="max-w-[1920px] mx-auto flex justify-between items-center">
       
       <!-- Logo + Navigation -->
       <div class="flex items-center gap-6">
