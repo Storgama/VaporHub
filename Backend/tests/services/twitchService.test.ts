@@ -1,22 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { 
+    mockUpdateResolve,
+    expectUpdateCalled 
+} from '../helpers/dbMock.js';
+
+import { 
     buildAuthUrl, 
     fetchUserProfile, 
     fetchLiveStream, 
+    fetchBatchLiveStreams,
     exchangeCodeForTokens, 
     getValidAccessToken,
     fetchAdSchedule
 } from '../../src/services/twitchService.js';
 import { encrypt } from '../../src/utils/encryption.js';
-import { db } from '../../src/db/initBdd.js';
 
-vi.mock('../../src/db/initBdd.js', () => ({
-    db: {
-        update: vi.fn()
-    }
-}));
-
-describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
+describe('📊 Services : twitchService)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -45,7 +44,7 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         vi.spyOn(global, 'fetch').mockResolvedValueOnce({
             ok: true,
             json: async () => ({ data: [mockProfile] })
-        });
+        } as unknown as Response);
 
         const profile = await fetchUserProfile('123456', 'fake_access_token');
 
@@ -57,7 +56,7 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         vi.spyOn(global, 'fetch').mockResolvedValueOnce({
             ok: true,
             json: async () => ({ data: [] })
-        });
+        } as unknown as Response);
 
         const profile = await fetchUserProfile('inexistant', 'fake_access_token');
         expect(profile).toBeNull();
@@ -69,7 +68,7 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         vi.spyOn(global, 'fetch').mockResolvedValueOnce({
             ok: true,
             json: async () => ({ data: [mockStream] })
-        });
+        } as unknown as Response);
 
         const stream = await fetchLiveStream('123456', 'fake_access_token');
         expect(stream).toEqual(mockStream);
@@ -79,13 +78,32 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         vi.spyOn(global, 'fetch').mockResolvedValueOnce({
             ok: true,
             json: async () => ({ data: [] })
-        });
+        } as unknown as Response);
 
         const stream = await fetchLiveStream('123456', 'fake_access_token');
         expect(stream).toBeNull();
     });
 
-    describe('📡 Radar Publicitaire Twitch (fetchAdSchedule)', () => {
+    it('doit récupérer plusieurs flux live en une seule requête (Batch)', async () => {
+        const mockStreams = [
+            { id: 's1', user_id: '111', viewer_count: 50 },
+            { id: 's2', user_id: '222', viewer_count: 100 }
+        ];
+
+        vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ data: mockStreams })
+        } as unknown as Response);
+
+        const streams = await fetchBatchLiveStreams(['111', '222'], 'fake_token');
+        expect(streams).toEqual(mockStreams);
+        expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining('user_id=111&user_id=222'),
+            expect.any(Object)
+        );
+    });
+
+    describe('📡 fetchAdSchedule', () => {
         it('doit récupérer le calendrier publicitaire avec compte à rebours et pré-roll', async () => {
             const mockAdData = {
                 snooze_count: 1,
@@ -99,7 +117,7 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
             vi.spyOn(global, 'fetch').mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({ data: [mockAdData] })
-            });
+            } as unknown as Response);
 
             const adSchedule = await fetchAdSchedule('123456', 'fake_access_token');
 
@@ -120,7 +138,7 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
                 ok: false,
                 status: 403,
                 json: async () => ({ message: 'Not an affiliate or partner' })
-            });
+            } as unknown as Response);
 
             const adSchedule = await fetchAdSchedule('123456', 'fake_access_token');
             expect(adSchedule).toBeNull();
@@ -133,7 +151,7 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         vi.spyOn(global, 'fetch').mockResolvedValueOnce({
             ok: true,
             json: async () => mockTokenResponse
-        });
+        } as unknown as Response);
 
         const tokens = await exchangeCodeForTokens('auth_code_123');
         expect(tokens).toEqual(mockTokenResponse);
@@ -141,8 +159,15 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
 
     it('doit renvoyer le token en clair s\'il n\'est pas encore expiré', async () => {
         const tokenRecord = {
+            id: 'token_1',
+            userId: 'user_1',
+            provider: 'twitch',
+            providerAccountId: '123',
             accessToken: encrypt('token_encore_valide'),
-            expiresAt: new Date(Date.now() + 3600 * 1000)
+            refreshToken: encrypt('refresh_valide'),
+            expiresAt: new Date(Date.now() + 3600 * 1000),
+            createdAt: new Date(),
+            updatedAt: new Date()
         };
 
         const token = await getValidAccessToken(tokenRecord);
@@ -153,9 +178,14 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         it('doit rafraîchir le token auprès de Twitch et mettre à jour la BDD si expiré', async () => {
             const tokenRecord = {
                 id: 'token_db_id_1',
+                userId: 'user_1',
+                provider: 'twitch',
+                providerAccountId: '123',
                 accessToken: encrypt('ancien_token'),
                 refreshToken: encrypt('ancien_refresh_token'),
-                expiresAt: new Date(Date.now() - 1000) // Expiré
+                expiresAt: new Date(Date.now() - 1000), // Expiré
+                createdAt: new Date(),
+                updatedAt: new Date()
             };
 
             const mockRefreshResponse = {
@@ -167,32 +197,33 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
             vi.spyOn(global, 'fetch').mockResolvedValueOnce({
                 ok: true,
                 json: async () => mockRefreshResponse
-            });
+            } as unknown as Response);
 
-            db.update.mockReturnValueOnce({
-                set: vi.fn().mockReturnValueOnce({
-                    where: vi.fn().mockResolvedValueOnce({})
-                })
-            });
+            mockUpdateResolve();
 
             const newToken = await getValidAccessToken(tokenRecord);
 
             expect(newToken).toBe('tout_nouveau_token');
-            expect(db.update).toHaveBeenCalled();
+            expectUpdateCalled();
         });
 
         it('doit retourner null si Twitch rejette la demande de refresh', async () => {
             const tokenRecord = {
                 id: 'token_db_id_1',
+                userId: 'user_1',
+                provider: 'twitch',
+                providerAccountId: '123',
                 accessToken: encrypt('ancien_token'),
                 refreshToken: encrypt('refresh_revoque'),
-                expiresAt: new Date(Date.now() - 1000)
+                expiresAt: new Date(Date.now() - 1000),
+                createdAt: new Date(),
+                updatedAt: new Date()
             };
 
             vi.spyOn(global, 'fetch').mockResolvedValueOnce({
                 ok: false,
                 json: async () => ({ message: 'Invalid refresh token' })
-            });
+            } as unknown as Response);
 
             const newToken = await getValidAccessToken(tokenRecord);
             expect(newToken).toBeNull();
@@ -201,9 +232,14 @@ describe('🎮 Services : Twitch API Client (twitchService.js)', () => {
         it('doit capturer les exceptions réseau et retourner null proprement', async () => {
             const tokenRecord = {
                 id: 'token_db_id_1',
+                userId: 'user_1',
+                provider: 'twitch',
+                providerAccountId: '123',
                 accessToken: encrypt('ancien_token'),
                 refreshToken: encrypt('refresh_valide'),
-                expiresAt: new Date(Date.now() - 1000)
+                expiresAt: new Date(Date.now() - 1000),
+                createdAt: new Date(),
+                updatedAt: new Date()
             };
 
             vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Erreur réseau'));
