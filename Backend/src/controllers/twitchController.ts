@@ -378,3 +378,198 @@ export async function getTwitchAdSchedule(
     }
 }
 
+/**
+ * Déclenche une coupure publicitaire sur Twitch (ou simulation)
+ */
+export async function triggerCommercial(
+    req: Request,
+    res: Response,
+    next: NextFn
+): Promise<void | Response> {
+    try {
+        const user = (req as Request & { user?: AuthUser }).user;
+        const userId = user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+        const length = Number(req.body?.length) || 60;
+        const isMock = req.query?.mock === 'true';
+
+        if (isMock) {
+            return res.json({
+                success: true,
+                length,
+                retryAfter: 300,
+                simulated: true,
+                message: `Simulation: Coupure publicitaire de ${length}s lancée`
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.status(404).json({ error: 'Aucun compte Twitch lié' });
+
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.status(401).json({ error: 'Token Twitch expiré ou invalide' });
+
+        try {
+            const result = await twitchService.triggerCommercial(tokenRecord.providerAccountId, accessToken, length);
+            return res.json({
+                success: true,
+                length: result.length,
+                retryAfter: result.retry_after,
+                message: `Coupure publicitaire de ${result.length}s lancée`
+            });
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Échec du lancement de la pub';
+            return res.status(400).json({ error: errorMsg });
+        }
+    } catch (error) {
+        forwardError(next, error);
+    }
+}
+
+/**
+ * Déclenche un raid vers une chaîne cible (ou simulation)
+ */
+export async function startRaid(
+    req: Request,
+    res: Response,
+    next: NextFn
+): Promise<void | Response> {
+    try {
+        const user = (req as Request & { user?: AuthUser }).user;
+        const userId = user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+        const targetLogin = String(req.body?.targetLogin || '').toLowerCase();
+        const isMock = req.query?.mock === 'true';
+
+        if (isMock) {
+            return res.json({
+                success: true,
+                targetLogin,
+                simulated: true,
+                createdAt: new Date().toISOString(),
+                message: `Simulation: Raid lancé vers ${targetLogin}`
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.status(404).json({ error: 'Aucun compte Twitch lié' });
+
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.status(401).json({ error: 'Token Twitch expiré ou invalide' });
+
+        try {
+            const result = await twitchService.startRaid(tokenRecord.providerAccountId, accessToken, targetLogin);
+            return res.json({
+                success: true,
+                targetLogin,
+                createdAt: result.created_at
+            });
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Échec du lancement du raid';
+            const status = errorMsg === 'Chaîne cible introuvable' ? 404 : 400;
+            return res.status(status).json({ error: errorMsg });
+        }
+    } catch (error) {
+        forwardError(next, error);
+    }
+}
+
+/**
+ * Annule un raid en cours (ou simulation)
+ */
+export async function cancelRaid(
+    req: Request,
+    res: Response,
+    next: NextFn
+): Promise<void | Response> {
+    try {
+        const user = (req as Request & { user?: AuthUser }).user;
+        const userId = user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+        const isMock = req.query?.mock === 'true';
+        if (isMock) {
+            return res.json({
+                success: true,
+                canceled: true,
+                simulated: true
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.status(404).json({ error: 'Aucun compte Twitch lié' });
+
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.status(401).json({ error: 'Token Twitch expiré ou invalide' });
+
+        try {
+            await twitchService.cancelRaid(tokenRecord.providerAccountId, accessToken);
+            return res.json({
+                success: true,
+                canceled: true
+            });
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Impossible d\'annuler le raid';
+            return res.status(400).json({ error: errorMsg });
+        }
+    } catch (error) {
+        forwardError(next, error);
+    }
+}
+
+/**
+ * Reporte la prochaine coupure publicitaire de 5 minutes (ou simulation)
+ */
+export async function snoozeAd(
+    req: Request,
+    res: Response,
+    next: NextFn
+): Promise<void | Response> {
+    try {
+        const user = (req as Request & { user?: AuthUser }).user;
+        const userId = user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+        const isMock = req.query?.mock === 'true';
+        if (isMock) {
+            return res.json({
+                success: true,
+                snoozed: true,
+                simulated: true,
+                nextAdAt: Date.now() + 300000
+            });
+        }
+
+        const [tokenRecord] = await db.select().from(oauthTokens).where(
+            and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, 'twitch'))
+        );
+        if (!tokenRecord) return res.status(404).json({ error: 'Aucun compte Twitch lié' });
+
+        const accessToken = await twitchService.getValidAccessToken(tokenRecord);
+        if (!accessToken) return res.status(401).json({ error: 'Token Twitch expiré ou invalide' });
+
+        try {
+            const result = await twitchService.snoozeNextAd(tokenRecord.providerAccountId, accessToken);
+            return res.json({
+                success: true,
+                snoozed: true,
+                nextAdAt: result.next_ad_at
+            });
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Impossible de reporter la coupure publicitaire';
+            return res.status(400).json({ error: errorMsg });
+        }
+    } catch (error) {
+        forwardError(next, error);
+    }
+}
+
+
