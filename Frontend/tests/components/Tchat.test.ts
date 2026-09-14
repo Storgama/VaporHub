@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Chat from '../../src/components/Chat.vue';
-import type { ChatMessage } from '../../src/types/chat.js';
+import type { ChatMessage } from '../../src/types/chat';
 
 describe('🧩 Composant : Chat.vue (Tchat natif multi-plateforme & modération)', () => {
     const mockMessages: ChatMessage[] = [

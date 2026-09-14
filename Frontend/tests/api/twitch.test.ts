@@ -7,8 +7,8 @@ import {
     getTwitchSummaryApi,
     getTwitchBreakdownApi,
     getTwitchAdScheduleApi
-} from '../../src/api/twitch.js';
-import * as clientModule from '../../src/api/client.js';
+} from '../../src/api/twitch';
+import * as clientModule from '../../src/api/client';
 
 describe('🎮 API : Twitch Endpoints (twitch.js)', () => {
     beforeEach(() => {
@@ -20,7 +20,7 @@ describe('🎮 API : Twitch Endpoints (twitch.js)', () => {
         vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: true,
             json: async () => mockSummary
-        });
+        } as unknown as Response);
 
         const data = await getTwitchSummaryApi();
         expect(data).toEqual(mockSummary);
@@ -37,7 +37,7 @@ describe('🎮 API : Twitch Endpoints (twitch.js)', () => {
         const httpSpy = vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: true,
             json: async () => mockBreakdown
-        });
+        } as unknown as Response);
 
         const data = await getTwitchBreakdownApi('yearly');
         expect(data).toEqual(mockBreakdown);
@@ -58,7 +58,7 @@ describe('🎮 API : Twitch Endpoints (twitch.js)', () => {
         const httpSpy = vi.spyOn(clientModule, 'httpClient').mockResolvedValueOnce({
             ok: true,
             json: async () => mockAds
-        });
+        } as unknown as Response);
 
         const data = await getTwitchAdScheduleApi();
         expect(data).toEqual(mockAds);

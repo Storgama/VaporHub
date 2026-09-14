@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import TwitchHistory from '../../src/components/TwitchHistory.vue';
-import * as twitchApi from '../../src/api/twitch.js';
+import * as twitchApi from '../../src/api/twitch';
 
 // Mock de Chart.js
 vi.mock('chart.js/auto', () => {
@@ -20,7 +20,7 @@ describe('📈 Composant : TwitchHistory.vue (Analytics de Rétention)', () => {
 
     it('doit afficher le message "aucun stream" si l\'historique est vide', async () => {
         vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce([]);
-        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValueOnce(null);
+        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValueOnce(null as unknown as twitchApi.TwitchSummaryResponse);
 
         const wrapper = mount(TwitchHistory);
         await wrapper.vm.$nextTick();
@@ -63,9 +63,9 @@ describe('📈 Composant : TwitchHistory.vue (Analytics de Rétention)', () => {
             }
         };
 
-        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValueOnce(mockSummary);
-        vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce(mockSessions);
-        vi.spyOn(twitchApi, 'getTwitchMetricsApi').mockResolvedValueOnce(mockMetrics);
+        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValueOnce(mockSummary as unknown as twitchApi.TwitchSummaryResponse);
+        vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce(mockSessions as unknown as twitchApi.TwitchSessionItem[]);
+        vi.spyOn(twitchApi, 'getTwitchMetricsApi').mockResolvedValueOnce(mockMetrics as unknown as twitchApi.TwitchMetricsResponse);
 
         const wrapper = mount(TwitchHistory);
         await wrapper.vm.$nextTick();
@@ -90,13 +90,13 @@ describe('📈 Composant : TwitchHistory.vue (Analytics de Rétention)', () => {
             { id: 'sess_2', title: 'Live 2', startedAt: '2026-09-02T15:00:00Z' }
         ];
 
-        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValue(null);
-        vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce(mockSessions);
+        vi.spyOn(twitchApi, 'getTwitchSummaryApi').mockResolvedValue(null as unknown as twitchApi.TwitchSummaryResponse);
+        vi.spyOn(twitchApi, 'getTwitchHistoryApi').mockResolvedValueOnce(mockSessions as unknown as twitchApi.TwitchSessionItem[]);
         const metricsSpy = vi.spyOn(twitchApi, 'getTwitchMetricsApi').mockResolvedValue({
             session: mockSessions[1],
             metrics: [],
             retention: { retentionRate: 75, watchTimeHours: 80, retentionTier: { label: 'Audience Stable', badge: 'stable' } }
-        });
+        } as unknown as twitchApi.TwitchMetricsResponse);
 
         const wrapper = mount(TwitchHistory);
         await wrapper.vm.$nextTick();

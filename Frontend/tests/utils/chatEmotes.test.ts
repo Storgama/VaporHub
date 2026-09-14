@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseMessageContent, GLOBAL_EMOTES } from '../../src/utils/chatEmotes.js';
+import { parseMessageContent, GLOBAL_EMOTES } from '../../src/utils/chatEmotes';
 
 describe('🎨 Utilitaire : chatEmotes (Parsing & Émotes inline)', () => {
 

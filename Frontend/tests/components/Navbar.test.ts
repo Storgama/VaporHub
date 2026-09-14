@@ -4,11 +4,11 @@ import Navbar from '../../src/components/Navbar.vue';
 import { ref, computed } from 'vue';
 
 // Mock du state useAuth
-const mockUser = ref(null);
+const mockUser = ref<string | null>(null);
 const mockIsAuthenticated = computed(() => !!mockUser.value);
 const mockLogout = vi.fn();
 
-vi.mock('../../src/state/useAuth.js', () => ({
+vi.mock('../../src/state/useAuth', () => ({
     useAuth: () => ({
         user: mockUser,
         isAuthenticated: mockIsAuthenticated,
@@ -48,10 +48,11 @@ describe('🧩 Composant : Navbar.vue', () => {
         const wrapper = mount(Navbar);
 
         const statsBtn = wrapper.findAll('button').find(b => b.text().includes('Statistiques'));
-        await statsBtn.trigger('click');
+        expect(statsBtn).toBeDefined();
+        await statsBtn!.trigger('click');
 
         expect(wrapper.emitted('change-view')).toBeTruthy();
-        expect(wrapper.emitted('change-view')[0]).toEqual(['analytics']);
+        expect(wrapper.emitted('change-view')![0]).toEqual(['analytics']);
     });
 
     it('doit appeler la fonction logout quand on clique sur Déconnexion', async () => {
@@ -60,7 +61,8 @@ describe('🧩 Composant : Navbar.vue', () => {
         const wrapper = mount(Navbar);
 
         const logoutBtn = wrapper.findAll('button').find(b => b.text().includes('Déconnexion'));
-        await logoutBtn.trigger('click');
+        expect(logoutBtn).toBeDefined();
+        await logoutBtn!.trigger('click');
 
         expect(mockLogout).toHaveBeenCalledTimes(1);
     });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { httpClient } from '../../src/api/client.js';
+import { httpClient } from '../../src/api/client';
 
 describe('🌐 API : Client HTTP (client.js)', () => {
     beforeEach(() => {
@@ -14,37 +14,38 @@ describe('🌐 API : Client HTTP (client.js)', () => {
     it('doit envoyer une requête avec les bons en-têtes JSON et Bearer si présent', async () => {
         localStorage.setItem('accessToken', 'my_secret_jwt');
 
-        const mockFetch = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+        const mockFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
             status: 200,
             ok: true,
             json: async () => ({ success: true })
-        });
+        } as unknown as Response);
 
         const res = await httpClient('/test-endpoint');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         const [url, options] = mockFetch.mock.calls[0];
         expect(url).toContain('/test-endpoint');
-        expect(options.headers['Content-Type']).toBe('application/json');
-        expect(options.headers['Authorization']).toBe('Bearer my_secret_jwt');
+        const headers = options?.headers as Record<string, string>;
+        expect(headers['Content-Type']).toBe('application/json');
+        expect(headers['Authorization']).toBe('Bearer my_secret_jwt');
     });
 
     it('doit tenter un rafraîchissement de token si l\'API renvoie 401 et qu\'un refreshToken existe', async () => {
         localStorage.setItem('accessToken', 'expired_token');
         localStorage.setItem('refreshToken', 'valid_refresh');
 
-        vi.spyOn(global, 'fetch')
-            .mockResolvedValueOnce({ status: 401, ok: false })
+        vi.spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce({ status: 401, ok: false } as unknown as Response)
             .mockResolvedValueOnce({
                 ok: true,
                 status: 200,
                 json: async () => ({ accessToken: 'new_fresh_token' })
-            })
-            .mockResolvedValueOnce({ status: 200, ok: true, json: async () => ({ data: 'ok' }) });
+            } as unknown as Response)
+            .mockResolvedValueOnce({ status: 200, ok: true, json: async () => ({ data: 'ok' }) } as unknown as Response);
 
         const res = await httpClient('/data');
 
-        expect(global.fetch).toHaveBeenCalledTimes(3);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(3);
         expect(localStorage.getItem('accessToken')).toBe('new_fresh_token');
     });
 
@@ -59,9 +60,9 @@ describe('🌐 API : Client HTTP (client.js)', () => {
             configurable: true
         });
 
-        vi.spyOn(global, 'fetch')
-            .mockResolvedValueOnce({ status: 401, ok: false })
-            .mockResolvedValueOnce({ ok: false, status: 403 });
+        vi.spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce({ status: 401, ok: false } as unknown as Response)
+            .mockResolvedValueOnce({ ok: false, status: 403 } as unknown as Response);
 
         await httpClient('/data');
 

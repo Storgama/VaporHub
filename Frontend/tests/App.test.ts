@@ -5,7 +5,7 @@ import App from '../src/App.vue';
 
 const mockIsAuthenticated = ref(false);
 
-vi.mock('../src/state/useAuth.js', () => ({
+vi.mock('../src/state/useAuth', () => ({
     useAuth: () => ({
         isAuthenticated: computed(() => mockIsAuthenticated.value),
         user: ref('TestUser'),

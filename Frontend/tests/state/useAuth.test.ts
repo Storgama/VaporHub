@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAuth } from '../../src/state/useAuth.js';
-import * as authApi from '../../src/api/auth.js';
+import { useAuth } from '../../src/state/useAuth';
+import * as authApi from '../../src/api/auth';
 
 describe('🖥️ State : useAuth (useAuth.js)', () => {
     beforeEach(() => {
@@ -37,7 +37,7 @@ describe('🖥️ State : useAuth (useAuth.js)', () => {
 
     it('doit appeler registerApi lors de l\'inscription', async () => {
         const mockRegisterResponse = { message: 'Utilisateur créé' };
-        vi.spyOn(authApi, 'registerApi').mockResolvedValueOnce(mockRegisterResponse);
+        vi.spyOn(authApi, 'registerApi').mockResolvedValueOnce(mockRegisterResponse as unknown as authApi.AuthResponse);
 
         const { register } = useAuth();
         const res = await register('NewUser', 'new@test.com', 'password123');
@@ -50,7 +50,7 @@ describe('🖥️ State : useAuth (useAuth.js)', () => {
         localStorage.setItem('accessToken', 'token_access');
         localStorage.setItem('username', 'StreamerPro');
 
-        vi.spyOn(authApi, 'logoutApi').mockResolvedValueOnce({});
+        vi.spyOn(authApi, 'logoutApi').mockResolvedValueOnce(undefined as unknown as void);
 
         const { logout, user, isAuthenticated } = useAuth();
 

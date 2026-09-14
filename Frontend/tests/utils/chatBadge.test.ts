@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBadge, DEFAULT_BADGES } from '../../src/utils/chatBadges.js';
+import { resolveBadge, DEFAULT_BADGES } from '../../src/utils/chatBadges';
 
 describe('🛡️ Utilitaire : chatBadges (Badges de rôle & événementiels)', () => {
 

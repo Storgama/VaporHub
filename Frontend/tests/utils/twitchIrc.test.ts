@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTwitchIrcLine } from '../../src/utils/twitchIrc.js';
+import { parseTwitchIrcLine } from '../../src/utils/twitchIrc';
 
 describe('📡 Utilitaire : twitchIrc (Parsing protocole IRC Twitch WebSocket)', () => {
 

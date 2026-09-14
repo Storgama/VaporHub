@@ -4,8 +4,8 @@ import {
     startRaidApi, 
     cancelRaidApi, 
     snoozeAdApi 
-} from '../../src/api/twitch.js';
-import * as clientModule from '../../src/api/client.js';
+} from '../../src/api/twitch';
+import * as clientModule from '../../src/api/client';
 
 describe('🎮 API : Actions Rapides Twitch (twitchActions)', () => {
     beforeEach(() => {

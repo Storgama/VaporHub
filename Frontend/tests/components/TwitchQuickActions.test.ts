@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import TwitchQuickActions from '../../src/components/TwitchQuickActions.vue';
-import * as twitchApi from '../../src/api/twitch.js';
+import * as twitchApi from '../../src/api/twitch';
 
 describe('🧩 Composant : TwitchQuickActions.vue', () => {
     beforeEach(() => {

@@ -19,7 +19,8 @@
     "src/**/*.d.ts", 
     "src/**/*.tsx", 
     "src/**/*.vue", 
-    "src/**/*.js"
+    "src/**/*.js",
+    "tests/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
