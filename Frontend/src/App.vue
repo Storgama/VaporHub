@@ -1,12 +1,13 @@
 <script setup lang="ts">
   import { ref } from 'vue';
-  import { useAuth } from './state/useAuth.js';
+  import { useAuth } from './state/useAuth';
   import Navbar from './components/Navbar.vue';
   import AuthView from './views/AuthView.vue';
   import DashboardView from './views/DashboardView.vue';
   import AnalyticsView from './views/AnalyticsView.vue';
+  import BotView from './views/BotView.vue';
 
-  export type ViewType = 'dashboard' | 'analytics';
+  export type ViewType = 'dashboard' | 'analytics' | 'bot';
 
   const { isAuthenticated } = useAuth();
   const currentView = ref<ViewType>('dashboard');
@@ -22,6 +23,7 @@
       <template v-if="isAuthenticated">
         <DashboardView v-if="currentView === 'dashboard'" />
         <AnalyticsView v-else-if="currentView === 'analytics'" />
+        <BotView v-else-if="currentView === 'bot'" />
       </template>
       <AuthView v-else />
     </main>

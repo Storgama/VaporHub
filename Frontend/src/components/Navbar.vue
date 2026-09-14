@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useAuth } from '../state/useAuth.js';
-import { Flame, User, LogOut, LayoutDashboard, BarChart3 } from 'lucide-vue-next';
+import { useAuth } from '../state/useAuth';
+import { Flame, User, LogOut, LayoutDashboard, BarChart3, Bot } from 'lucide-vue-next';
 
 withDefaults(
   defineProps<{
@@ -36,6 +36,7 @@ const { user, isAuthenticated, logout } = useAuth();
         <!-- Onglets Navigation -->
         <nav class="flex items-center gap-1 bg-zinc-900/60 p-1 rounded-xl border border-zinc-800">
           <button 
+            data-testid="nav-btn-dashboard"
             @click="$emit('change-view', 'dashboard')"
             :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer',
                      currentView === 'dashboard' ? 'bg-purple-600 text-white shadow-md' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50']"
@@ -44,12 +45,22 @@ const { user, isAuthenticated, logout } = useAuth();
             <span>Dashboard</span>
           </button>
           <button 
+            data-testid="nav-btn-analytics"
             @click="$emit('change-view', 'analytics')"
             :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer',
                      currentView === 'analytics' ? 'bg-purple-600 text-white shadow-md' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50']"
           >
             <BarChart3 class="w-3.5 h-3.5" />
             <span>Statistiques</span>
+          </button>
+          <button 
+            data-testid="nav-btn-bot"
+            @click="$emit('change-view', 'bot')"
+            :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer',
+                     currentView === 'bot' ? 'bg-purple-600 text-white shadow-md' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50']"
+          >
+            <Bot class="w-3.5 h-3.5" />
+            <span>Bot Discord</span>
           </button>
         </nav>
       </div>

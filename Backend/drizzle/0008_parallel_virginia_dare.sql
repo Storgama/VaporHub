@@ -1,0 +1,2 @@
+ALTER TABLE "discord_alert_configs" DROP CONSTRAINT "discord_alert_configs_user_id_unique";--> statement-breakpoint
+ALTER TABLE "discord_alert_configs" ADD COLUMN "name" text DEFAULT 'Alerte de stream' NOT NULL;

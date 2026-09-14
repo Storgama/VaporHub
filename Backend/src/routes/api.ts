@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import twitchRoutes from './twitchRoutes.js';
 import authRoutes from './authRoutes.js';
+import discordRoutes from './discordRoutes.js';
 
 const router: Router = Router();
 
@@ -13,6 +14,7 @@ router.get('/health', (req: Request, res: Response): void => {
 
 router.use('/twitch', twitchRoutes);
 router.use('/auth', authRoutes);
+router.use('/discord', discordRoutes);
 
 export default router;
 
