@@ -3,7 +3,7 @@ import { users } from './users.js';
 
 export const refreshTokens = pgTable('refresh_tokens', {
     id: uuid('id').defaultRandom().primaryKey(),
-    //liaison avec user
+    // liaison avec user
     userId: uuid('user_id')
         .notNull()
         .references(() => users.id, { onDelete: 'cascade' }),
@@ -11,4 +11,7 @@ export const refreshTokens = pgTable('refresh_tokens', {
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull()
 });
+
+export type RefreshToken = typeof refreshTokens.$inferSelect;
+export type NewRefreshToken = typeof refreshTokens.$inferInsert;
 

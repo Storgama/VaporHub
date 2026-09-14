@@ -17,4 +17,8 @@ export const streamSessions = pgTable('stream_sessions', {
     startedAt: timestamp('started_at').notNull(),
     endedAt: timestamp('ended_at'), // Reste null tant que le stream est actif
     createdAt: timestamp('created_at').defaultNow().notNull()
-})
+});
+
+export type StreamSession = typeof streamSessions.$inferSelect;
+export type NewStreamSession = typeof streamSessions.$inferInsert;
+

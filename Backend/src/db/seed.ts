@@ -1,14 +1,19 @@
 import 'dotenv/config';
 import { eq } from 'drizzle-orm';
 import { db } from './initBdd.js';
-import { users, streamSessions, streamMetrics } from './schemas/index.js';
+import { users, streamSessions, streamMetrics, type User, type NewStreamMetric } from './schemas/index.js';
+
+interface GameSeed {
+    name: string;
+    titles: string[];
+}
 
 /**
  * Script de Seeding Réaliste : 2 Ans d'Historique de Stream (3 lives par semaine = ~312 streams)
  */
-async function seedTwoYears() {
+async function seedTwoYears(): Promise<void> {
     const targetEmail = process.argv[2] || process.env.SEED_USER_EMAIL;
-    let user;
+    let user: User | undefined;
 
     if (targetEmail) {
         console.log(`🌱 Recherche du compte : ${targetEmail}...`);
@@ -28,7 +33,7 @@ async function seedTwoYears() {
     console.log(`👤 Génération pour : ${user.username} (${user.email})`);
     console.log('⏳ Génération de 2 ans d\'historique (104 semaines x 3 streams/semaine = 312 streams)...');
 
-    const games = [
+    const games: GameSeed[] = [
         { name: 'Valorant', titles: ['Ranked Immortal Road !', 'Duo Q Tryhard', 'Full stack ranked avec la commu'] },
         { name: 'Just Chatting', titles: ['Debrief de la semaine & Chill', 'On discute des drama du web', 'Tier list des pires jeux 2025'] },
         { name: 'GTA RP', titles: ['RP Soirée en ville', 'Braquage de banque et poursuites', 'Nouvelle identité RP'] },
@@ -44,9 +49,6 @@ async function seedTwoYears() {
     // 104 semaines (2 ans)
     const totalWeeks = 104;
     const streamScheduleDays = [2, 4, 6]; // Mardi, Jeudi, Samedi
-
-    const allSessions = [];
-    const allMetrics = [];
 
     let streamCount = 0;
 
@@ -85,10 +87,10 @@ async function seedTwoYears() {
             const pointsCount = Math.floor((durationHours * 60) / metricIntervalMinutes);
             let currentViewers = Math.round(baseAudience * 0.8);
 
-            const sessionMetrics = [];
+            const sessionMetrics: NewStreamMetric[] = [];
             for (let p = 0; p < pointsCount; p++) {
                 const pointTime = new Date(streamDate.getTime() + p * metricIntervalMinutes * 60 * 1000);
-                
+
                 // Fluctuation d'audience
                 const delta = Math.floor(Math.random() * 9) - 4;
                 currentViewers = Math.max(8, Math.min(peakAudience, currentViewers + delta));
@@ -111,7 +113,8 @@ async function seedTwoYears() {
     process.exit(0);
 }
 
-seedTwoYears().catch(err => {
+seedTwoYears().catch((err: unknown) => {
     console.error('❌ Erreur seeding 2 ans :', err);
     process.exit(1);
 });
+

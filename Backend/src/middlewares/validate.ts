@@ -17,6 +17,11 @@ export function validate<T = unknown>(schema?: ZodType<T>): RequestHandler {
             return;
         }
 
+        if (typeof req.body === 'object' && !Array.isArray(req.body) && Object.keys(req.body).length === 0) {
+            res.status(400).json({ error: 'Des champs sont vides' });
+            return;
+        }
+
         const result = typeof schema.safeParseAsync === 'function'
             ? await schema.safeParseAsync(req.body)
             : schema.safeParse(req.body);

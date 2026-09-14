@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middlewares/authMiddleware.js';
 import * as twitchController from '../controllers/twitchController.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.get('/auth', requireAuth, twitchController.getTwitchAuthUrl);
 router.get('/callback', twitchController.twitchCallback);
@@ -14,3 +14,4 @@ router.get('/analytics/breakdown', requireAuth, twitchController.getAnalyticsBre
 router.get('/ads', requireAuth, twitchController.getTwitchAdSchedule);
 
 export default router;
+

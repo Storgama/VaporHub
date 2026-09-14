@@ -6,12 +6,12 @@ export const oauthTokens = pgTable(
     {
         id: uuid('id').defaultRandom().primaryKey(),
 
-        //liaison avec user
+        // liaison avec user
         userId: uuid('user_id')
             .notNull()
             .references(() => users.id, { onDelete: 'cascade' }),
-        
-        //nom du service (twitch, youtube, blablabla)
+
+        // nom du service (twitch, youtube, blablabla)
         provider: text('provider').notNull(),
         // L'ID unique de l'utilisateur CÔTÉ TWITCH (ex: "12345678")
         providerAccountId: text('provider_account_id').notNull(),
@@ -33,4 +33,8 @@ export const oauthTokens = pgTable(
     (table) => [
         uniqueIndex('user_provider_account_unique_idx').on(table.userId, table.provider, table.providerAccountId)
     ]
-)
+);
+
+export type OAuthToken = typeof oauthTokens.$inferSelect;
+export type NewOAuthToken = typeof oauthTokens.$inferInsert;
+

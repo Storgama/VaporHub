@@ -7,7 +7,8 @@ vi.mock('../../src/db/initBdd.js', () => ({
         select: vi.fn(),
         insert: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn()
+        delete: vi.fn(),
+        execute: vi.fn()
     }
 }));
 
@@ -82,6 +83,20 @@ export function expectInsertCount(count: number) {
 export function expectNoInsert() {
     expect(vi.mocked(db.insert)).not.toHaveBeenCalled();
 }
+/**
+ * Simule db.execute() avec succès
+ */
+export function mockExecuteResolve<T = unknown>(result: T = {} as T) {
+    vi.mocked(db.execute).mockResolvedValueOnce(result as never);
+}
+
+/**
+ * Simule db.execute() en échec
+ */
+export function mockExecuteReject(error: Error = new Error('Database error')) {
+    vi.mocked(db.execute).mockRejectedValueOnce(error);
+}
+
 /**
  * Vérifie qu'au moins une mise à jour a été effectuée
  */

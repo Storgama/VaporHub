@@ -3,7 +3,7 @@ import crypto from 'crypto';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 12 octets pour le vecteur d'initialisation GCM
 
-function getEncryptionKey() {
+function getEncryptionKey(): Buffer {
     const keyHex = process.env.ENCRYPTION_KEY;
     if (!keyHex || keyHex.length !== 64) {
         throw new Error('ENCRYPTION_KEY doit être une chaîne hexadécimale de 64 caractères (32 octets)');
@@ -15,7 +15,10 @@ function getEncryptionKey() {
  * Chiffre un texte en clair avec AES-256-GCM
  * Format de sortie : "iv:authTag:donneesChiffrees" (en hexadécimal)
  */
-export function encrypt(text) {
+export function encrypt(text: null | undefined | ''): null;
+export function encrypt(text: string): string;
+export function encrypt(text: string | null | undefined): string | null;
+export function encrypt(text: string | null | undefined): string | null {
     if (!text) return null;
 
     const key = getEncryptionKey();
@@ -34,7 +37,10 @@ export function encrypt(text) {
 /**
  * Déchiffre un texte chiffré au format "iv:authTag:donneesChiffrees"
  */
-export function decrypt(encryptedText) {
+export function decrypt(encryptedText: null | undefined | ''): null;
+export function decrypt(encryptedText: string): string;
+export function decrypt(encryptedText: string | null | undefined): string | null;
+export function decrypt(encryptedText: string | null | undefined): string | null {
     if (!encryptedText) return null;
 
     const parts = encryptedText.split(':');
@@ -56,3 +62,4 @@ export function decrypt(encryptedText) {
 
     return decrypted;
 }
+

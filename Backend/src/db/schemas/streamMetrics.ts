@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, integer, timestamp } from 'drizzle-orm/pg-core';
 import { streamSessions } from './streamSessions.js';
 
 /**
@@ -13,3 +13,7 @@ export const streamMetrics = pgTable('stream_metrics', {
     timestamp: timestamp('timestamp').defaultNow().notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull()
 });
+
+export type StreamMetric = typeof streamMetrics.$inferSelect;
+export type NewStreamMetric = typeof streamMetrics.$inferInsert;
+
