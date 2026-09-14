@@ -1,15 +1,19 @@
-<script setup>
+<script setup lang="ts">
 import { useAuth } from '../state/useAuth.js';
 import { Flame, User, LogOut, LayoutDashboard, BarChart3 } from 'lucide-vue-next';
 
-defineProps({
-  currentView: {
-    type: String,
-    default: 'dashboard'
+withDefaults(
+  defineProps<{
+    currentView?: string;
+  }>(),
+  {
+    currentView: 'dashboard'
   }
-});
+);
 
-defineEmits(['change-view']);
+defineEmits<{
+  (e: 'change-view', view: string): void;
+}>();
 
 const { user, isAuthenticated, logout } = useAuth();
 </script>

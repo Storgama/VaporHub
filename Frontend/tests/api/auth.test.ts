@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loginApi, registerApi, logoutApi } from '../../src/api/auth.js';
 import * as clientModule from '../../src/api/client.js';
 
-describe('🚪 API : Auth Endpoints (auth.js)', () => {
+describe('🚪 API : Auth Endpoints (auth.ts)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });

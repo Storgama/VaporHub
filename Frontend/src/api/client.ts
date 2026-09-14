@@ -1,19 +1,21 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const BASE_URL: string = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000/api';
 
 /**
- * Client HTTP centralisé (fetch enveloppé)
+ * Client HTTP centralisé (fetch enveloppé avec gestion du refresh token)
  */
-export async function httpClient(endpoint, options = {}) {
+export async function httpClient(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const accessToken = localStorage.getItem('accessToken');
 
-  options.headers = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string> || {}),
   };
 
   if (accessToken) {
-    options.headers['Authorization'] = `Bearer ${accessToken}`;
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
+
+  options.headers = headers;
 
   let response = await fetch(`${BASE_URL}${endpoint}`, options);
 
@@ -29,11 +31,12 @@ export async function httpClient(endpoint, options = {}) {
       });
 
       if (refreshResponse.ok) {
-        const data = await refreshResponse.json();
+        const data = (await refreshResponse.json()) as { accessToken: string };
         localStorage.setItem('accessToken', data.accessToken);
 
         // Rejoue la requête avec le nouveau token
-        options.headers['Authorization'] = `Bearer ${data.accessToken}`;
+        headers['Authorization'] = `Bearer ${data.accessToken}`;
+        options.headers = headers;
         response = await fetch(`${BASE_URL}${endpoint}`, options);
       } else {
         // Refresh token invalide -> déconnexion forcée
@@ -45,3 +48,4 @@ export async function httpClient(endpoint, options = {}) {
 
   return response;
 }
+
