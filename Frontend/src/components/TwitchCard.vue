@@ -14,6 +14,7 @@ import {
   ShieldCheck, 
   FlaskConical 
 } from 'lucide-vue-next';
+import TwitchQuickActions from './TwitchQuickActions.vue';
 
 interface TwitchCardStats {
   linked?: boolean;
@@ -288,6 +289,13 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- Actions Rapides Live (Pubs, Raids, Snooze) -->
+        <TwitchQuickActions 
+          :is-live="stats.isLive" 
+          :is-mock="isMockMode" 
+          @action-completed="() => loadStats(true)" 
+        />
       </div>
 
       <!-- Barre d'action inférieure -->

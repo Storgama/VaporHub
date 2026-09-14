@@ -81,7 +81,14 @@ export interface OAuthTokenRecord {
 export function buildAuthUrl(userId: string): string {
     const clientId = process.env.TWITCH_CLIENT_ID || '';
     const redirectUri = process.env.TWITCH_REDIRECT_URI || '';
-    const scopes = ['user:read:email', 'channel:read:stream_key', 'channel:read:ads'].join(' ');
+    const scopes = [
+        'user:read:email', 
+        'channel:read:stream_key', 
+        'channel:read:ads',
+        'channel:edit:commercial',
+        'channel:manage:raids',
+        'channel:manage:ads'
+    ].join(' ');
     return `${TWITCH_AUTH_URL}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${encodeURIComponent(userId)}`;
 }
 
@@ -268,3 +275,156 @@ export async function fetchAdSchedule(
         return null;
     }
 }
+
+export interface TwitchCommercialResult {
+    length: number;
+    message: string;
+    retry_after: number;
+}
+
+export interface TwitchRaidResult {
+    created_at: string;
+    is_mature: boolean;
+}
+
+export interface TwitchSnoozeResult {
+    snooze_count: number;
+    snooze_refresh_at: number;
+    next_ad_at: number;
+}
+
+/**
+ * Déclenche une coupure publicitaire sur la chaîne
+ */
+export async function triggerCommercial(
+    broadcasterId: string,
+    accessToken: string,
+    length: number
+): Promise<TwitchCommercialResult> {
+    const res = await fetch(`${TWITCH_HELIX_URL}/channels/commercial`, {
+        method: 'POST',
+        headers: {
+            'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            broadcaster_id: broadcasterId,
+            length
+        }),
+        signal: AbortSignal.timeout(5000)
+    });
+
+    const data = (await res.json()) as { data?: TwitchCommercialResult[]; message?: string; error?: string };
+    if (!res.ok) {
+        throw new Error(data.message || data.error || 'Impossible de lancer la coupure publicitaire');
+    }
+
+    if (!data.data || !data.data[0]) {
+        throw new Error('Réponse invalide de l\'API Twitch pour la coupure publicitaire');
+    }
+
+    return data.data[0];
+}
+
+/**
+ * Déclenche un raid vers une chaîne cible
+ */
+export async function startRaid(
+    fromBroadcasterId: string,
+    accessToken: string,
+    targetLogin: string
+): Promise<TwitchRaidResult> {
+    // 1. Résolution de l'identifiant de la chaîne cible
+    const userRes = await fetch(`${TWITCH_HELIX_URL}/users?login=${encodeURIComponent(targetLogin)}`, {
+        headers: {
+            'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        signal: AbortSignal.timeout(5000)
+    });
+
+    const userData = (await userRes.json()) as { data?: Array<{ id: string }> };
+    if (!userRes.ok || !userData.data || userData.data.length === 0) {
+        throw new Error('Chaîne cible introuvable');
+    }
+
+    const targetBroadcasterId = userData.data[0].id;
+
+    // 2. Lancement du raid
+    const raidRes = await fetch(
+        `${TWITCH_HELIX_URL}/raids?from_broadcaster_id=${encodeURIComponent(fromBroadcasterId)}&to_broadcaster_id=${encodeURIComponent(targetBroadcasterId)}`,
+        {
+            method: 'POST',
+            headers: {
+                'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            signal: AbortSignal.timeout(5000)
+        }
+    );
+
+    const raidData = (await raidRes.json()) as { data?: TwitchRaidResult[]; message?: string; error?: string };
+    if (!raidRes.ok) {
+        throw new Error(raidData.message || raidData.error || 'Échec du lancement du raid');
+    }
+
+    if (!raidData.data || !raidData.data[0]) {
+        throw new Error('Réponse invalide de l\'API Twitch pour le raid');
+    }
+
+    return raidData.data[0];
+}
+
+/**
+ * Annule un raid en cours
+ */
+export async function cancelRaid(
+    broadcasterId: string,
+    accessToken: string
+): Promise<boolean> {
+    const res = await fetch(`${TWITCH_HELIX_URL}/raids?broadcaster_id=${encodeURIComponent(broadcasterId)}`, {
+        method: 'DELETE',
+        headers: {
+            'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        signal: AbortSignal.timeout(5000)
+    });
+
+    if (!res.ok) {
+        const data = (await res.json()) as { message?: string };
+        throw new Error(data.message || 'Impossible d\'annuler le raid');
+    }
+
+    return true;
+}
+
+/**
+ * Reporte la prochaine coupure publicitaire de 5 minutes (Snooze)
+ */
+export async function snoozeNextAd(
+    broadcasterId: string,
+    accessToken: string
+): Promise<TwitchSnoozeResult> {
+    const res = await fetch(`${TWITCH_HELIX_URL}/channels/ads/snooze?broadcaster_id=${encodeURIComponent(broadcasterId)}`, {
+        method: 'POST',
+        headers: {
+            'Client-Id': process.env.TWITCH_CLIENT_ID || '',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        signal: AbortSignal.timeout(5000)
+    });
+
+    const data = (await res.json()) as { data?: TwitchSnoozeResult[]; message?: string; error?: string };
+    if (!res.ok) {
+        throw new Error(data.message || data.error || 'Impossible de reporter la coupure publicitaire');
+    }
+
+    if (!data.data || !data.data[0]) {
+        throw new Error('Réponse invalide de l\'API Twitch pour le report publicitaire');
+    }
+
+    return data.data[0];
+}
+

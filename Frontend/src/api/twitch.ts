@@ -176,3 +176,80 @@ export async function getTwitchAdScheduleApi(query: string = ''): Promise<Twitch
   return data;
 }
 
+export interface TwitchCommercialResponse {
+  success: boolean;
+  length: number;
+  retryAfter: number;
+  message?: string;
+  simulated?: boolean;
+}
+
+export interface TwitchRaidResponse {
+  success: boolean;
+  targetLogin: string;
+  createdAt?: string;
+  simulated?: boolean;
+}
+
+export interface TwitchSnoozeResponse {
+  success: boolean;
+  snoozed: boolean;
+  nextAdAt?: number;
+  simulated?: boolean;
+}
+
+/**
+ * Déclenche une coupure publicitaire
+ */
+export async function triggerCommercialApi(length: number, isMock: boolean = false): Promise<TwitchCommercialResponse> {
+  const query = isMock ? '?mock=true' : '';
+  const res = await httpClient(`/twitch/actions/commercial${query}`, {
+    method: 'POST',
+    body: JSON.stringify({ length })
+  });
+  const data = (await res.json()) as TwitchCommercialResponse & { error?: string };
+  if (!res.ok) throw new Error(data.error || 'Erreur lors du déclenchement de la pub');
+  return data;
+}
+
+/**
+ * Lance un raid vers une chaîne cible
+ */
+export async function startRaidApi(targetLogin: string, isMock: boolean = false): Promise<TwitchRaidResponse> {
+  const query = isMock ? '?mock=true' : '';
+  const res = await httpClient(`/twitch/actions/raid${query}`, {
+    method: 'POST',
+    body: JSON.stringify({ targetLogin })
+  });
+  const data = (await res.json()) as TwitchRaidResponse & { error?: string };
+  if (!res.ok) throw new Error(data.error || 'Erreur lors du lancement du raid');
+  return data;
+}
+
+/**
+ * Annule un raid en cours
+ */
+export async function cancelRaidApi(isMock: boolean = false): Promise<{ success: boolean; canceled: boolean }> {
+  const query = isMock ? '?mock=true' : '';
+  const res = await httpClient(`/twitch/actions/raid${query}`, {
+    method: 'DELETE'
+  });
+  const data = (await res.json()) as { success: boolean; canceled: boolean; error?: string };
+  if (!res.ok) throw new Error(data.error || 'Erreur lors de l\'annulation du raid');
+  return data;
+}
+
+/**
+ * Reporte la prochaine coupure publicitaire de 5 minutes
+ */
+export async function snoozeAdApi(isMock: boolean = false): Promise<TwitchSnoozeResponse> {
+  const query = isMock ? '?mock=true' : '';
+  const res = await httpClient(`/twitch/actions/ads/snooze${query}`, {
+    method: 'POST'
+  });
+  const data = (await res.json()) as TwitchSnoozeResponse & { error?: string };
+  if (!res.ok) throw new Error(data.error || 'Erreur lors du report de la pub');
+  return data;
+}
+
+
